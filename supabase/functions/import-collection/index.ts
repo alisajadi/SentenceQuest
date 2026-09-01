@@ -4,13 +4,17 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods":
+    "POST, OPTIONS",
 };
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabaseUrl =
+  Deno.env.get("SUPABASE_URL")!;
 
-const adminClient = createClient(
+const serviceRoleKey =
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const db = createClient(
   supabaseUrl,
   serviceRoleKey,
   {
@@ -21,93 +25,133 @@ const adminClient = createClient(
   }
 );
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
+function reply(
+  data: unknown,
+  status = 200
+) {
+  return new Response(
+    JSON.stringify(data),
+    {
+      status,
+      headers: {
+        ...corsHeaders,
+        "Content-Type":
+          "application/json",
+      },
+    }
+  );
 }
 
-function normalizeWord(word: string) {
-  return word.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-async function requireAdmin(req: Request) {
-  const auth = req.headers.get("Authorization");
+async function requireAdmin(
+  req: Request
+) {
+  const auth =
+    req.headers.get("Authorization");
 
   if (!auth?.startsWith("Bearer ")) {
-    throw new Error("Missing authorization");
+    throw new Error(
+      "Missing authorization"
+    );
   }
 
-  const token = auth.replace("Bearer ", "").trim();
+  const token =
+    auth.substring(7);
 
-  const { data: userData, error: userError } =
-    await adminClient.auth.getUser(token);
+  const { data, error } =
+    await db.auth.getUser(token);
 
-  if (userError || !userData.user) {
-    throw new Error("Invalid session");
+  if (error || !data.user) {
+    throw new Error(
+      "Invalid session"
+    );
   }
 
   const { data: profile, error: profileError } =
-    await adminClient
+    await db
       .from("profiles")
       .select("role")
-      .eq("id", userData.user.id)
+      .eq("id", data.user.id)
       .single();
 
-  if (profileError || profile?.role !== "admin") {
-    throw new Error("Admin access required");
+  if (
+    profileError ||
+    profile?.role !== "admin"
+  ) {
+    throw new Error(
+      "Admin access required"
+    );
   }
 
-  return userData.user;
+  return data.user;
+}
+
+function normalizeWord(
+  word: string
+) {
+  return word
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", {
+      headers: corsHeaders,
+    });
   }
 
   if (req.method !== "POST") {
-    return json({ error: "POST required" }, 405);
+    return reply(
+      { error: "POST required" },
+      405
+    );
   }
 
   try {
     await requireAdmin(req);
 
-    const collection = await req.json();
+    const data =
+      await req.json();
 
-    if (collection?.format !== "sentencequest.collection") {
-      return json({
-        error: "Invalid collection format",
-      }, 400);
+    if (
+      data?.format !==
+      "sentencequest.collection"
+    ) {
+      throw new Error(
+        "Invalid collection format"
+      );
     }
 
-    const languageData = collection.language;
-    const collectionData = collection.collection;
+    const languageData =
+      data.language;
 
-    if (!languageData?.code || !collectionData?.slug) {
-      return json({
-        error: "Missing language or collection data",
-      }, 400);
+    const collectionData =
+      data.collection;
+
+    if (
+      !languageData?.code ||
+      !collectionData?.slug
+    ) {
+      throw new Error(
+        "Missing language or collection"
+      );
     }
 
-    // -----------------------------------------------------
-    // LANGUAGE
-    // -----------------------------------------------------
+    /*
+     * LANGUAGE
+     */
 
     const { data: language, error: languageError } =
-      await adminClient
+      await db
         .from("languages")
         .upsert(
           {
             code: languageData.code,
             name: languageData.name,
-            native_name: languageData.native_name,
+            native_name:
+              languageData.native_name,
             is_active: true,
-            updated_at: new Date().toISOString(),
           },
           {
             onConflict: "code",
@@ -116,24 +160,27 @@ Deno.serve(async (req) => {
         .select()
         .single();
 
-    if (languageError) throw languageError;
+    if (languageError)
+      throw languageError;
 
-    // -----------------------------------------------------
-    // COLLECTION
-    // -----------------------------------------------------
+    /*
+     * COLLECTION
+     */
 
-    const { data: dbCollection, error: collectionError } =
-      await adminClient
+    const { data: collection, error: collectionError } =
+      await db
         .from("collections")
         .upsert(
           {
             language_id: language.id,
             slug: collectionData.slug,
             name: collectionData.name,
-            description: collectionData.description ?? null,
-            version: collection.version ?? 1,
+            description:
+              collectionData.description ??
+              null,
+            version:
+              data.version ?? 1,
             is_published: false,
-            updated_at: new Date().toISOString(),
           },
           {
             onConflict: "slug",
@@ -142,265 +189,408 @@ Deno.serve(async (req) => {
         .select()
         .single();
 
-    if (collectionError) throw collectionError;
+    if (collectionError)
+      throw collectionError;
 
-    // -----------------------------------------------------
-    // VOCABULARY
-    // -----------------------------------------------------
+    /*
+     * VOCABULARY
+     */
 
-    const vocabularyMap = new Map<string, string>();
+    const vocabularyMap =
+      new Map<string, string>();
 
-    for (const item of collection.vocabulary ?? []) {
-      const { data: vocab, error } = await adminClient
-        .from("vocabulary")
-        .upsert(
-          {
-            language_id: language.id,
-            word: item.word,
-            normalized_word: normalizeWord(item.word),
-            part_of_speech: item.part_of_speech,
-            translation: item.translation ?? null,
-            pronunciation: item.pronunciation ?? null,
-            level: item.level ?? null,
-            definition: item.definition ?? null,
-            metadata: item.metadata ?? {},
-            is_active: true,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict:
-              "language_id,normalized_word,part_of_speech",
-          }
-        )
-        .select()
-        .single();
+    for (
+      const item
+      of data.vocabulary ?? []
+    ) {
+      const { data: vocabulary, error } =
+        await db
+          .from("vocabulary")
+          .upsert(
+            {
+              language_id: language.id,
+              word: item.word,
+              normalized_word:
+                normalizeWord(item.word),
+              part_of_speech:
+                item.part_of_speech,
+              translation:
+                item.translation ??
+                null,
+              pronunciation:
+                item.pronunciation ??
+                null,
+              level:
+                item.level ?? null,
+              definition:
+                item.definition ??
+                null,
+              metadata:
+                item.metadata ?? {},
+              is_active: true,
+            },
+            {
+              onConflict:
+                "language_id,normalized_word,part_of_speech",
+            }
+          )
+          .select()
+          .single();
 
-      if (error) throw error;
+      if (error)
+        throw error;
 
-      vocabularyMap.set(item.id, vocab.id);
+      vocabularyMap.set(
+        item.id,
+        vocabulary.id
+      );
+
+      /*
+       * WORD FORMS
+       */
 
       if (item.forms) {
-        for (const [formType, form] of Object.entries(item.forms)) {
-          const { error: formError } = await adminClient
-            .from("word_forms")
-            .upsert(
-              {
-                vocabulary_id: vocab.id,
-                form_type: formType,
-                form: String(form),
-              },
-              {
-                onConflict: "vocabulary_id,form_type",
-              }
-            );
+        for (
+          const [type, form]
+          of Object.entries(
+            item.forms
+          )
+        ) {
+          const { error: formError } =
+            await db
+              .from("word_forms")
+              .upsert(
+                {
+                  vocabulary_id:
+                    vocabulary.id,
+                  form_type: type,
+                  form: String(form),
+                },
+                {
+                  onConflict:
+                    "vocabulary_id,form_type",
+                }
+              );
 
-          if (formError) throw formError;
+          if (formError)
+            throw formError;
         }
       }
     }
 
-    // -----------------------------------------------------
-    // GRAMMAR
-    // -----------------------------------------------------
+    /*
+     * GRAMMAR
+     */
 
-    const grammarMap = new Map<string, string>();
+    const grammarMap =
+      new Map<string, string>();
 
-    for (const item of collection.grammar ?? []) {
-      const { data: grammar, error } = await adminClient
-        .from("grammar")
-        .upsert(
-          {
-            language_id: language.id,
-            code: item.code,
-            name: item.name,
-            level: item.level ?? null,
-            description: item.description ?? null,
-            rules: item.rules ?? {},
-            is_active: true,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: "language_id,code",
-          }
-        )
-        .select()
-        .single();
+    for (
+      const item
+      of data.grammar ?? []
+    ) {
+      const { data: grammar, error } =
+        await db
+          .from("grammar")
+          .upsert(
+            {
+              language_id:
+                language.id,
+              code: item.code,
+              name: item.name,
+              level:
+                item.level ?? null,
+              description:
+                item.description ??
+                null,
+              rules:
+                item.rules ?? {},
+              is_active: true,
+            },
+            {
+              onConflict:
+                "language_id,code",
+            }
+          )
+          .select()
+          .single();
 
-      if (error) throw error;
+      if (error)
+        throw error;
 
-      grammarMap.set(item.code, grammar.id);
+      grammarMap.set(
+        item.code,
+        grammar.id
+      );
     }
 
-    // -----------------------------------------------------
-    // PATTERNS
-    // -----------------------------------------------------
+    /*
+     * PATTERNS
+     */
 
-    const patternMap = new Map<string, string>();
+    const patternMap =
+      new Map<string, string>();
 
-    for (const item of collection.patterns ?? []) {
+    for (
+      const item
+      of data.patterns ?? []
+    ) {
+      const grammarCode =
+        data.grammar?.[0]?.code;
+
       const grammarId =
         grammarMap.get(
-          collection.grammar?.[0]?.code
+          grammarCode
         );
 
       if (!grammarId) {
         throw new Error(
-          `No grammar found for pattern ${item.code}`
+          `Grammar not found for pattern ${item.code}`
         );
       }
 
-      const { data: pattern, error } = await adminClient
-        .from("sentence_patterns")
-        .upsert(
-          {
-            grammar_id: grammarId,
-            code: item.code,
-            name: item.name,
-            slots: item.slots ?? [],
-            rules: item.rules ?? {},
-          },
-          {
-            onConflict: "grammar_id,code",
-          }
-        )
-        .select()
-        .single();
+      const { data: pattern, error } =
+        await db
+          .from("sentence_patterns")
+          .upsert(
+            {
+              grammar_id:
+                grammarId,
+              code: item.code,
+              name: item.name,
+              slots:
+                item.slots ?? [],
+              rules:
+                item.rules ?? {},
+            },
+            {
+              onConflict:
+                "grammar_id,code",
+            }
+          )
+          .select()
+          .single();
 
-      if (error) throw error;
+      if (error)
+        throw error;
 
-      patternMap.set(item.code, pattern.id);
+      patternMap.set(
+        item.code,
+        pattern.id
+      );
     }
 
-    // -----------------------------------------------------
-    // LESSONS
-    // -----------------------------------------------------
+    /*
+     * LESSONS
+     */
 
-    const lessonIds: string[] = [];
+    let lessonCount = 0;
 
-    for (const item of collection.lessons ?? []) {
-      const grammarId = item.grammar_code
-        ? grammarMap.get(item.grammar_code)
-        : null;
+    for (
+      const item
+      of data.lessons ?? []
+    ) {
+      const grammarId =
+        item.grammar_code
+          ? grammarMap.get(
+              item.grammar_code
+            )
+          : null;
 
-      const patternId = item.pattern_code
-        ? patternMap.get(item.pattern_code)
-        : null;
+      const patternId =
+        item.pattern_code
+          ? patternMap.get(
+              item.pattern_code
+            )
+          : null;
 
-      const { data: lesson, error } = await adminClient
-        .from("lessons")
-        .upsert(
-          {
-            language_id: language.id,
-            grammar_id: grammarId ?? null,
-            pattern_id: patternId ?? null,
-            slug: item.slug,
-            title: item.title,
-            level: item.level ?? null,
-            order_index: item.order_index ?? 0,
-            target_sentence: item.target_sentence ?? [],
-            base_xp: item.base_xp ?? 50,
-            creativity_xp: item.creativity_xp ?? 20,
-            hint: item.hint ?? null,
-            settings: item.settings ?? {},
-            is_published: false,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: "slug",
-          }
-        )
-        .select()
-        .single();
+      const targetSentence =
+        item.target_sentence ??
+        [];
 
-      if (error) throw error;
+      const { data: lesson, error } =
+        await db
+          .from("lessons")
+          .upsert(
+            {
+              language_id:
+                language.id,
+              grammar_id:
+                grammarId,
+              pattern_id:
+                patternId,
+              slug: item.slug,
+              title: item.title,
+              level:
+                item.level ?? null,
+              order_index:
+                item.order_index ??
+                0,
+              target_sentence:
+                targetSentence,
+              base_xp:
+                item.base_xp ?? 50,
+              creativity_xp:
+                item.creativity_xp ??
+                20,
+              hint:
+                item.hint ?? null,
+              settings: {},
+              is_published: false,
+            },
+            {
+              onConflict: "slug",
+            }
+          )
+          .select()
+          .single();
 
-      lessonIds.push(lesson.id);
+      if (error)
+        throw error;
 
-      // Remove old lesson-word relations.
-      await adminClient
+      lessonCount++;
+
+      /*
+       * LESSON WORDS
+       */
+
+      await db
         .from("lesson_words")
         .delete()
-        .eq("lesson_id", lesson.id);
+        .eq(
+          "lesson_id",
+          lesson.id
+        );
 
-      const lessonWords = (item.available_words ?? [])
-        .map((id: string, index: number) => ({
-          lesson_id: lesson.id,
-          vocabulary_id: vocabularyMap.get(id),
-          sort_order: index,
-        }))
-        .filter((x: any) => x.vocabulary_id);
+      const lessonWords =
+        (item.available_words ??
+          [])
+          .map(
+            (
+              jsonId: string,
+              index: number
+            ) => ({
+              lesson_id:
+                lesson.id,
+              vocabulary_id:
+                vocabularyMap.get(
+                  jsonId
+                ),
+              sort_order:
+                index,
+            })
+          )
+          .filter(
+            (x: any) =>
+              x.vocabulary_id
+          );
 
       if (lessonWords.length) {
-        const { error: lwError } = await adminClient
-          .from("lesson_words")
-          .insert(lessonWords);
+        const { error } =
+          await db
+            .from("lesson_words")
+            .insert(
+              lessonWords
+            );
 
-        if (lwError) throw lwError;
+        if (error)
+          throw error;
       }
 
-      // Add lesson to collection.
-      await adminClient
-        .from("collection_items")
-        .delete()
-        .eq("collection_id", dbCollection.id)
-        .eq("lesson_id", lesson.id);
+      /*
+       * COLLECTION → LESSON
+       */
 
-      const { error: ciError } = await adminClient
-        .from("collection_items")
-        .insert({
-          collection_id: dbCollection.id,
-          lesson_id: lesson.id,
-          sort_order: item.order_index ?? 0,
-        });
+      const { error: itemError } =
+        await db
+          .from(
+            "collection_items"
+          )
+          .upsert(
+            {
+              collection_id:
+                collection.id,
+              lesson_id:
+                lesson.id,
+              sort_order:
+                item.order_index ??
+                0,
+            },
+            {
+              onConflict:
+                "collection_id,lesson_id",
+            }
+          );
 
-      if (ciError) throw ciError;
+      if (itemError)
+        throw itemError;
     }
 
-    // -----------------------------------------------------
-    // COLLECTION VOCABULARY ITEMS
-    // -----------------------------------------------------
+    /*
+     * COLLECTION → VOCABULARY
+     */
 
-    for (const item of collection.vocabulary ?? []) {
-      const vocabularyId = vocabularyMap.get(item.id);
+    for (
+      const item
+      of data.vocabulary ?? []
+    ) {
+      const vocabularyId =
+        vocabularyMap.get(
+          item.id
+        );
 
-      if (!vocabularyId) continue;
+      if (!vocabularyId)
+        continue;
 
-      await adminClient
-        .from("collection_items")
-        .delete()
-        .eq("collection_id", dbCollection.id)
-        .eq("vocabulary_id", vocabularyId);
+      const { error } =
+        await db
+          .from(
+            "collection_items"
+          )
+          .upsert(
+            {
+              collection_id:
+                collection.id,
+              vocabulary_id:
+                vocabularyId,
+              sort_order: 0,
+            },
+            {
+              onConflict:
+                "collection_id,vocabulary_id",
+            }
+          );
 
-      const { error } = await adminClient
-        .from("collection_items")
-        .insert({
-          collection_id: dbCollection.id,
-          vocabulary_id: vocabularyId,
-          sort_order: 0,
-        });
-
-      if (error) throw error;
+      if (error)
+        throw error;
     }
 
-    return json({
+    return reply({
       success: true,
-      collection_id: dbCollection.id,
-      collection: collectionData.slug,
-      vocabulary_count: vocabularyMap.size,
-      grammar_count: grammarMap.size,
-      pattern_count: patternMap.size,
-      lesson_count: lessonIds.length,
+      collection:
+        collectionData.slug,
+      vocabulary_count:
+        vocabularyMap.size,
+      grammar_count:
+        grammarMap.size,
+      pattern_count:
+        patternMap.size,
+      lesson_count:
+        lessonCount,
     });
 
   } catch (error) {
     console.error(error);
 
-    return json({
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
-    }, 400);
+    return reply(
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      },
+      400
+    );
   }
 });

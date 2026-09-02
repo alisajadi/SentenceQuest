@@ -65,3 +65,66 @@ if (existingLessonItem) {
     throw insertCollectionLessonError;
   }
 }
+const {
+  data: existingVocabularyItem,
+} = await db
+  .from("collection_items")
+  .select("id")
+  .eq(
+    "collection_id",
+    collection.id
+  )
+  .eq(
+    "vocabulary_id",
+    vocabularyId
+  )
+  .maybeSingle();
+
+if (existingVocabularyItem) {
+
+  const {
+    error:
+      updateVocabularyItemError,
+  } = await db
+    .from("collection_items")
+    .update({
+      sort_order: 0,
+      lesson_id: null,
+    })
+    .eq(
+      "id",
+      existingVocabularyItem.id
+    );
+
+  if (
+    updateVocabularyItemError
+  ) {
+    throw updateVocabularyItemError;
+  }
+
+} else {
+
+  const {
+    error:
+      insertVocabularyItemError,
+  } = await db
+    .from("collection_items")
+    .insert({
+      collection_id:
+        collection.id,
+
+      vocabulary_id:
+        vocabularyId,
+
+      lesson_id:
+        null,
+
+      sort_order: 0,
+    });
+
+  if (
+    insertVocabularyItemError
+  ) {
+    throw insertVocabularyItemError;
+  }
+}

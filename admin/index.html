@@ -16,7 +16,7 @@
   >
 
   <title>
-    Sentence Quest Admin
+    SentenceQuest Admin
   </title>
 
   <link
@@ -26,7 +26,6 @@
 
 </head>
 
-
 <body>
 
   <div class="shell">
@@ -34,45 +33,44 @@
     <aside>
 
       <h1>
-        Sentence Quest
+        SentenceQuest
       </h1>
 
       <p>
         Admin Console
       </p>
 
-
       <nav>
 
-        <button data-v="dashboard">
+        <button data-view="dashboard">
           Dashboard
         </button>
 
-        <button data-v="vocabulary">
+        <button data-view="vocabulary">
           Vocabulary
         </button>
 
-        <button data-v="lessons">
-          Lessons
-        </button>
-
-        <button data-v="collections">
-          Collections
-        </button>
-
-        <button data-v="grammar">
+        <button data-view="grammar">
           Grammar
         </button>
 
-        <button data-v="config">
-          Front Config
+        <button data-view="lessons">
+          Lessons
         </button>
 
-        <button data-v="sync">
+        <button data-view="collections">
+          Collections
+        </button>
+
+        <button data-view="import">
+          Import Collection
+        </button>
+
+        <button data-view="publish">
           Publish / Sync
         </button>
 
-        <button data-v="app-version">
+        <button data-view="version">
           App Version
         </button>
 
@@ -95,7 +93,6 @@
 
       </header>
 
-
       <section id="app"></section>
 
     </main>
@@ -107,7 +104,9 @@
     src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
   ></script>
 
-  <script src="admin.js"></script>
+  <script
+    src="admin.js"
+  ></script>
 
 </body>
 

@@ -1,81 +1,129 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from
+  "https://esm.sh/@supabase/supabase-js@2";
+
 
 const corsHeaders = {
+
   "Access-Control-Allow-Origin": "*",
+
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+
   "Access-Control-Allow-Methods":
-    "POST, OPTIONS",
+    "POST, OPTIONS"
+
 };
 
-const db = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
 
-function json(
+const db =
+  createClient(
+
+    Deno.env.get(
+      "SUPABASE_URL"
+    )!,
+
+    Deno.env.get(
+      "SUPABASE_SERVICE_ROLE_KEY"
+    )!,
+
+    {
+      auth: {
+
+        autoRefreshToken: false,
+
+        persistSession: false
+
+      }
+    }
+
+  );
+
+
+function response(
   data: unknown,
   status = 200
 ) {
+
   return new Response(
+
     JSON.stringify(data),
+
     {
+
       status,
+
       headers: {
+
         ...corsHeaders,
+
         "Content-Type":
-          "application/json",
-      },
+          "application/json"
+
+      }
+
     }
+
   );
+
 }
 
-async function adminUser(
+
+/* =========================================================
+   ADMIN CHECK
+========================================================= */
+
+async function requireAdmin(
   req: Request
 ) {
-  const header =
+
+  const authorization =
     req.headers.get(
       "Authorization"
     );
 
+
   if (
-    !header?.startsWith(
+    !authorization ||
+    !authorization.startsWith(
       "Bearer "
     )
   ) {
+
     throw new Error(
       "Missing authorization."
     );
+
   }
 
+
   const token =
-    header.slice(7);
+    authorization.substring(7);
+
 
   const {
     data,
-    error,
+    error
   } =
     await db.auth.getUser(
       token
     );
 
+
   if (
     error ||
     !data.user
   ) {
+
     throw new Error(
-      "Invalid session."
+      "Invalid authentication session."
     );
+
   }
+
 
   const {
     data: profile,
+    error: profileError
   } =
     await db
       .from("profiles")
@@ -86,59 +134,111 @@ async function adminUser(
       )
       .maybeSingle();
 
+
+  if (profileError) {
+
+    throw new Error(
+      profileError.message
+    );
+
+  }
+
+
   if (
-    profile?.role !== "admin"
+    profile?.role !==
+    "admin"
   ) {
+
     throw new Error(
       "Admin access required."
     );
+
   }
 
+
   return data.user;
+
 }
 
+
+/* =========================================================
+   VERSION
+========================================================= */
+
+function versionString(
+  major: number,
+  minor: number
+) {
+
+  return (
+    `${major}.` +
+    String(minor)
+      .padStart(2, "0")
+  );
+
+}
+
+
+/* =========================================================
+   MAIN
+========================================================= */
+
 Deno.serve(
-  async (req) => {
+  async (
+    req
+  ) => {
 
     if (
-      req.method === "OPTIONS"
+      req.method ===
+      "OPTIONS"
     ) {
+
       return new Response(
         "ok",
         {
           headers:
-            corsHeaders,
+            corsHeaders
         }
       );
+
     }
+
 
     try {
 
       const user =
-        await adminUser(req);
+        await requireAdmin(
+          req
+        );
+
 
       const body =
         await req.json();
 
+
       const collectionId =
         body.collection_id;
+
 
       if (
         !collectionId
       ) {
+
         throw new Error(
           "collection_id is required."
         );
+
       }
 
-      /*
-       * COLLECTION
-       */
+
+      /* -----------------------------------------------------
+         COLLECTION
+      ----------------------------------------------------- */
 
       const {
         data: collection,
         error:
-          collectionError,
+          collectionError
       } =
         await db
           .from("collections")
@@ -149,17 +249,23 @@ Deno.serve(
           )
           .single();
 
-      if (collectionError)
+
+      if (
+        collectionError
+      ) {
+
         throw collectionError;
 
-      /*
-       * VALIDATE LESSONS
-       */
+      }
+
+
+      /* -----------------------------------------------------
+         LESSON IDS
+      ----------------------------------------------------- */
 
       const {
         data: items,
-        error:
-          itemsError,
+        error: itemsError
       } =
         await db
           .from("collection_items")
@@ -176,48 +282,78 @@ Deno.serve(
             null
           );
 
-      if (itemsError)
+
+      if (
+        itemsError
+      ) {
+
         throw itemsError;
+
+      }
+
 
       const lessonIds =
         (
-          items ?? []
+          items || []
         )
           .map(
-            x =>
-              x.lesson_id
+            item =>
+              item.lesson_id
           )
-          .filter(Boolean);
+          .filter(
+            Boolean
+          );
+
 
       if (
-        lessonIds.length === 0
+        lessonIds.length ===
+        0
       ) {
+
         throw new Error(
           "Collection has no lessons."
         );
+
       }
+
+
+      /* -----------------------------------------------------
+         LESSON VALIDATION
+      ----------------------------------------------------- */
 
       const {
         data: lessons,
-        error:
-          lessonsError,
+        error: lessonsError
       } =
         await db
           .from("lessons")
           .select(
-            "id,title,grammar_id,pattern_id,target_sentence"
+            `
+            id,
+            title,
+            grammar_id,
+            pattern_id,
+            target_sentence
+            `
           )
           .in(
             "id",
             lessonIds
           );
 
-      if (lessonsError)
+
+      if (
+        lessonsError
+      ) {
+
         throw lessonsError;
+
+      }
+
 
       for (
         const lesson of
-        lessons ?? []
+        lessons || []
       ) {
 
         if (
@@ -228,39 +364,49 @@ Deno.serve(
           lesson.target_sentence.length ===
             0
         ) {
+
           throw new Error(
             "Lesson has no target sentence: " +
             lesson.title
           );
+
         }
+
 
         if (
           !lesson.grammar_id
         ) {
+
           throw new Error(
             "Lesson has no grammar: " +
             lesson.title
           );
+
         }
+
 
         if (
           !lesson.pattern_id
         ) {
+
           throw new Error(
             "Lesson has no pattern: " +
             lesson.title
           );
+
         }
+
       }
 
-      /*
-       * NEXT DATABASE VERSION
-       */
+
+      /* -----------------------------------------------------
+         CURRENT DATABASE VERSION
+      ----------------------------------------------------- */
 
       const {
         data: currentVersion,
         error:
-          versionError,
+          versionError
       } =
         await db
           .from(
@@ -275,79 +421,128 @@ Deno.serve(
           )
           .single();
 
-      if (versionError)
+
+      if (
+        versionError
+      ) {
+
         throw versionError;
 
-      let major =
-        currentVersion.major_version;
-
-      let minor =
-        currentVersion.minor_version + 1;
-
-      if (minor > 99) {
-        throw new Error(
-          "Minor database version reached 99. Major version must be increased manually."
-        );
       }
 
-      /*
-       * PUBLISH COLLECTION
-       */
+
+      const major =
+        Number(
+          currentVersion.major_version
+        );
+
+
+      const minor =
+        Number(
+          currentVersion.minor_version
+        ) + 1;
+
+
+      if (
+        minor > 99
+      ) {
+
+        throw new Error(
+          "Minor version reached 99. Increase major version manually before publishing again."
+        );
+
+      }
+
+
+      const newVersion =
+        versionString(
+          major,
+          minor
+        );
+
+
+      /* -----------------------------------------------------
+         PUBLISH COLLECTION
+      ----------------------------------------------------- */
 
       const {
         error:
-          collectionUpdateError,
+          collectionUpdateError
       } =
         await db
           .from("collections")
           .update({
-            is_published: true,
+
+            is_published:
+              true,
 
             version:
-              collection.version + 1,
+              Number(
+                collection.version || 0
+              ) + 1,
 
             updated_at:
-              new Date().toISOString(),
+              new Date()
+                .toISOString()
+
           })
           .eq(
             "id",
             collectionId
           );
 
-      if (collectionUpdateError)
+
+      if (
+        collectionUpdateError
+      ) {
+
         throw collectionUpdateError;
 
-      /*
-       * PUBLISH LESSONS
-       */
+      }
+
+
+      /* -----------------------------------------------------
+         PUBLISH LESSONS
+      ----------------------------------------------------- */
 
       const {
         error:
-          lessonUpdateError,
+          lessonUpdateError
       } =
         await db
           .from("lessons")
           .update({
-            is_published: true,
+
+            is_published:
+              true,
 
             updated_at:
-              new Date().toISOString(),
+              new Date()
+                .toISOString()
+
           })
           .in(
             "id",
             lessonIds
           );
 
-      if (lessonUpdateError)
+
+      if (
+        lessonUpdateError
+      ) {
+
         throw lessonUpdateError;
 
-      /*
-       * DATABASE VERSION
-       */
+      }
+
+
+      /* -----------------------------------------------------
+         DATABASE RELEASE
+      ----------------------------------------------------- */
 
       const {
         error:
-          releaseError,
+          releaseUpdateError
       } =
         await db
           .from(
@@ -369,10 +564,11 @@ Deno.serve(
               collection.name,
 
             published_at:
-              new Date().toISOString(),
+              new Date()
+                .toISOString(),
 
             published_by:
-              user.id,
+              user.id
 
           })
           .eq(
@@ -380,42 +576,59 @@ Deno.serve(
             true
           );
 
-      if (releaseError)
-        throw releaseError;
 
-      /*
-       * HISTORY
-       */
+      if (
+        releaseUpdateError
+      ) {
+
+        throw releaseUpdateError;
+
+      }
+
+
+      /* -----------------------------------------------------
+         DATABASE HISTORY
+      ----------------------------------------------------- */
 
       const {
         error:
-          historyError,
+          clearHistoryError
       } =
         await db
           .from(
             "database_versions"
           )
           .update({
+
             is_current:
-              false,
+              false
+
           })
-          .neq(
-            "id",
-            0
+          .eq(
+            "is_current",
+            true
           );
 
-      if (historyError)
-        throw historyError;
+
+      if (
+        clearHistoryError
+      ) {
+
+        throw clearHistoryError;
+
+      }
+
 
       const {
         error:
-          insertHistoryError,
+          historyInsertError
       } =
         await db
           .from(
             "database_versions"
           )
           .insert({
+
             version:
               minor,
 
@@ -423,92 +636,114 @@ Deno.serve(
               collection.name,
 
             notes:
-              "Published " +
+              "Published collection " +
               collection.slug,
 
-            created_at:
-              new Date().toISOString(),
+            checksum:
+              newVersion,
 
             is_current:
-              true,
+              true
+
           });
 
-      if (insertHistoryError)
-        throw insertHistoryError;
 
-      /*
-       * UPDATE MANIFEST
-       */
+      if (
+        historyInsertError
+      ) {
 
-      const {
-        data: appRelease,
-      } =
-        await db
-          .from(
-            "app_release"
-          )
-          .select(
-            "app_version"
-          )
-          .eq(
-            "id",
-            true
-          )
-          .single();
+        throw historyInsertError;
+
+      }
+
+
+      /* -----------------------------------------------------
+         UPDATE MANIFEST
+      ----------------------------------------------------- */
 
       const {
         error:
-          manifestError,
+          manifestError
       } =
         await db
           .from(
             "app_update_manifest"
           )
           .update({
+
             minimum_database_version:
-              `${major}.${String(minor).padStart(2, "0")}`,
+              newVersion,
 
             updated_at:
-              new Date().toISOString(),
+              new Date()
+                .toISOString()
+
           })
           .eq(
             "id",
             true
           );
 
-      if (manifestError)
+
+      if (
+        manifestError
+      ) {
+
         throw manifestError;
 
-      return json({
-        success: true,
+      }
+
+
+      /* -----------------------------------------------------
+         RESPONSE
+      ----------------------------------------------------- */
+
+      return response({
+
+        success:
+          true,
 
         collection:
           collection.slug,
 
         database_version:
-          `${major}.${String(minor).padStart(2, "0")}`,
-
-        app_version:
-          appRelease?.app_version ??
-          null,
+          newVersion,
 
         published_lessons:
-          lessonIds.length,
+          lessonIds.length
+
       });
 
-    } catch (error) {
 
-      return json(
+    } catch (
+      error
+    ) {
+
+      console.error(
+        "PUBLISH ERROR:",
+        error
+      );
+
+
+      return response(
+
         {
-          success: false,
+
+          success:
+            false,
 
           error:
             error instanceof Error
               ? error.message
-              : String(error),
+              : String(error)
+
         },
+
         400
+
       );
+
     }
+
   }
 );

@@ -41,6 +41,10 @@ create table if not exists public.vocabulary (
   unique(language_id, normalized_word, part_of_speech)
 );
 
+-- =========================================================
+-- WORD FORMS
+-- =========================================================
+
 create table if not exists public.word_forms (
   id uuid primary key default gen_random_uuid(),
   vocabulary_id uuid not null
@@ -50,6 +54,10 @@ create table if not exists public.word_forms (
 
   unique(vocabulary_id, form_type)
 );
+
+-- =========================================================
+-- WORD RELATIONS
+-- =========================================================
 
 create table if not exists public.word_relations (
   id uuid primary key default gen_random_uuid(),
@@ -83,6 +91,10 @@ create table if not exists public.grammar (
 
   unique(language_id, code)
 );
+
+-- =========================================================
+-- SENTENCE PATTERNS
+-- =========================================================
 
 create table if not exists public.sentence_patterns (
   id uuid primary key default gen_random_uuid(),
@@ -125,6 +137,10 @@ create table if not exists public.lessons (
   updated_at timestamptz not null default now()
 );
 
+-- =========================================================
+-- LESSON WORDS
+-- =========================================================
+
 create table if not exists public.lesson_words (
   lesson_id uuid not null
     references public.lessons(id) on delete cascade,
@@ -135,6 +151,10 @@ create table if not exists public.lesson_words (
 
   primary key(lesson_id, vocabulary_id)
 );
+
+-- =========================================================
+-- VALID SENTENCES
+-- =========================================================
 
 create table if not exists public.valid_sentences (
   id uuid primary key default gen_random_uuid(),
@@ -156,7 +176,6 @@ create table if not exists public.valid_sentences (
 
 create table if not exists public.lesson_grammar_intro (
   id uuid primary key default gen_random_uuid(),
-
   lesson_id uuid not null
     references public.lessons(id) on delete cascade,
 
@@ -198,6 +217,10 @@ create table if not exists public.collections (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- =========================================================
+-- COLLECTION ITEMS
+-- =========================================================
 
 create table if not exists public.collection_items (
   id uuid primary key default gen_random_uuid(),
@@ -279,7 +302,6 @@ create table if not exists public.app_update_manifest (
   id boolean primary key default true,
 
   app_version text not null,
-
   major_version integer not null,
   minor_version integer not null,
 
@@ -296,7 +318,9 @@ create table if not exists public.app_update_manifest (
 
   updated_at timestamptz not null default now(),
 
-  check(id = true)
+  check(id = true),
+  check(major_version >= 1),
+  check(minor_version >= 0 and minor_version <= 99)
 );
 
 -- =========================================================
@@ -312,13 +336,10 @@ create table if not exists public.database_release (
   database_version text,
 
   release_name text,
-
   notes text,
-
   checksum text,
 
   published_at timestamptz,
-
   published_by uuid,
 
   check(id = true),
@@ -336,23 +357,19 @@ create table if not exists public.database_versions (
   version integer unique not null,
 
   release_name text,
-
   checksum text,
-
   notes text,
 
   created_at timestamptz not null default now(),
 
   is_current boolean not null default false,
 
-  major_version integer default 1,
-
-  minor_version integer default 0,
+  major_version integer not null default 1,
+  minor_version integer not null default 0,
 
   display_version text,
 
   published_at timestamptz,
-
   published_by uuid
 );
 
@@ -366,7 +383,6 @@ create table if not exists public.sync_changes (
   db_version integer not null,
 
   entity_type text not null,
-
   entity_id uuid,
 
   operation text not null,
@@ -395,11 +411,14 @@ create table if not exists public.profiles (
   current_level integer not null default 1,
 
   created_at timestamptz not null default now(),
-
   updated_at timestamptz not null default now(),
 
   check(role in ('user', 'admin'))
 );
+
+-- =========================================================
+-- USER PROGRESS
+-- =========================================================
 
 create table if not exists public.user_progress (
   user_id uuid not null
@@ -409,15 +428,17 @@ create table if not exists public.user_progress (
     references public.lessons(id) on delete cascade,
 
   completed boolean not null default false,
-
   best_score integer not null default 0,
-
   attempts integer not null default 0,
 
   updated_at timestamptz not null default now(),
 
   primary key(user_id, lesson_id)
 );
+
+-- =========================================================
+-- USER VOCABULARY
+-- =========================================================
 
 create table if not exists public.user_vocabulary (
   user_id uuid not null
@@ -433,6 +454,10 @@ create table if not exists public.user_vocabulary (
   primary key(user_id, vocabulary_id)
 );
 
+-- =========================================================
+-- USER GIFTS
+-- =========================================================
+
 create table if not exists public.user_gifts (
   user_id uuid not null
     references auth.users(id) on delete cascade,
@@ -441,7 +466,6 @@ create table if not exists public.user_gifts (
     references public.gifts(id) on delete cascade,
 
   unlocked_at timestamptz not null default now(),
-
   claimed_at timestamptz,
 
   primary key(user_id, gift_id)
@@ -463,13 +487,25 @@ create index if not exists idx_lesson_grammar_intro_lesson
 create index if not exists idx_sync_version
   on public.sync_changes(db_version);
 
+-- Remove old duplicate indexes
+drop index if exists public.idx_grammar_intro_lesson;
+
+-- Remove old collection indexes
+drop index if exists public.collection_items_collection_lesson_idx;
+drop index if exists public.collection_items_collection_vocab_idx;
+
+-- Correct partial uniqueness:
+-- a collection may contain many lessons and many vocabulary items,
+-- but each specific item only once.
 create unique index if not exists
-  collection_items_collection_lesson_idx
-  on public.collection_items(collection_id, lesson_id);
+  collection_items_collection_lesson_unique_idx
+  on public.collection_items(collection_id, lesson_id)
+  where lesson_id is not null;
 
 create unique index if not exists
-  collection_items_collection_vocab_idx
-  on public.collection_items(collection_id, vocabulary_id);
+  collection_items_collection_vocab_unique_idx
+  on public.collection_items(collection_id, vocabulary_id)
+  where vocabulary_id is not null;
 
 -- =========================================================
 -- PROFILE AUTO-CREATE
@@ -507,6 +543,25 @@ for each row
 execute function public.handle_new_user();
 
 -- =========================================================
+-- ADMIN FUNCTION
+-- =========================================================
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles
+    where id = auth.uid()
+      and role = 'admin'
+  );
+$$;
+
+-- =========================================================
 -- RLS
 -- =========================================================
 
@@ -535,7 +590,7 @@ alter table public.user_vocabulary enable row level security;
 alter table public.user_gifts enable row level security;
 
 -- =========================================================
--- REMOVE EXISTING PUBLIC POLICIES
+-- REMOVE EXISTING POLICIES
 -- =========================================================
 
 do $$
@@ -557,166 +612,128 @@ end
 $$;
 
 -- =========================================================
--- ADMIN FUNCTION
--- =========================================================
-
-create or replace function public.is_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from public.profiles
-    where id = auth.uid()
-      and role = 'admin'
-  );
-$$;
-
--- =========================================================
 -- ADMIN POLICIES
 -- =========================================================
 
 create policy "admin languages"
 on public.languages
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin vocabulary"
 on public.vocabulary
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin word forms"
 on public.word_forms
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin word relations"
 on public.word_relations
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin grammar"
 on public.grammar
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin patterns"
 on public.sentence_patterns
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin lessons"
 on public.lessons
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin lesson words"
 on public.lesson_words
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin valid sentences"
 on public.valid_sentences
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin grammar intro"
 on public.lesson_grammar_intro
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin collections"
 on public.collections
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin collection items"
 on public.collection_items
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin gifts"
 on public.gifts
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin app config"
 on public.app_config
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin app release"
 on public.app_release
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin app update manifest"
 on public.app_update_manifest
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin database release"
 on public.database_release
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin database versions"
 on public.database_versions
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin sync changes"
 on public.sync_changes
-for all
-to authenticated
+for all to authenticated
 using (is_admin())
 with check (is_admin());
 
 create policy "admin profiles"
 on public.profiles
-for select
-to authenticated
-using (auth.uid() = id or is_admin());
+for all to authenticated
+using (auth.uid() = id or is_admin())
+with check (auth.uid() = id or is_admin());
 
 -- =========================================================
 -- PUBLIC READ POLICIES
@@ -724,20 +741,17 @@ using (auth.uid() = id or is_admin());
 
 create policy "public languages"
 on public.languages
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (is_active = true);
 
 create policy "public vocabulary"
 on public.vocabulary
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (is_active = true);
 
 create policy "public word forms"
 on public.word_forms
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (
   exists (
     select 1
@@ -749,8 +763,7 @@ using (
 
 create policy "public word relations"
 on public.word_relations
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (
   exists (
     select 1
@@ -769,14 +782,12 @@ using (
 
 create policy "public grammar"
 on public.grammar
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (is_active = true);
 
 create policy "public patterns"
 on public.sentence_patterns
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (
   exists (
     select 1
@@ -788,14 +799,12 @@ using (
 
 create policy "public lessons"
 on public.lessons
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (is_published = true);
 
 create policy "public lesson words"
 on public.lesson_words
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (
   exists (
     select 1
@@ -807,14 +816,12 @@ using (
 
 create policy "public approved sentences"
 on public.valid_sentences
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (is_approved = true);
 
 create policy "public grammar intro"
 on public.lesson_grammar_intro
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (
   is_active = true
   and exists (
@@ -827,14 +834,12 @@ using (
 
 create policy "public collections"
 on public.collections
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (is_published = true);
 
 create policy "public collection items"
 on public.collection_items
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (
   exists (
     select 1
@@ -846,38 +851,32 @@ using (
 
 create policy "public gifts"
 on public.gifts
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (is_active = true);
 
 create policy "public config"
 on public.app_config
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (true);
 
 create policy "public app release"
 on public.app_release
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (true);
 
 create policy "public app update manifest"
 on public.app_update_manifest
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (is_active = true);
 
 create policy "public database release"
 on public.database_release
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (true);
 
 create policy "public current version"
 on public.database_versions
-for select
-to anon, authenticated
+for select to anon, authenticated
 using (is_current = true);
 
 -- =========================================================
@@ -886,34 +885,122 @@ using (is_current = true);
 
 create policy "users own profile"
 on public.profiles
-for select
-to authenticated
-using (auth.uid() = id);
+for select to authenticated
+using (auth.uid() = id or is_admin());
 
 create policy "users update own profile"
 on public.profiles
-for update
-to authenticated
+for update to authenticated
 using (auth.uid() = id)
 with check (auth.uid() = id);
 
 create policy "users own progress"
 on public.user_progress
-for all
-to authenticated
+for all to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
 create policy "users own vocabulary"
 on public.user_vocabulary
-for all
-to authenticated
+for all to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
 create policy "users own gifts"
 on public.user_gifts
-for all
-to authenticated
+for all to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
+
+-- =========================================================
+-- VERSION NORMALIZATION FOR EXISTING DATABASE
+-- =========================================================
+
+insert into public.app_release (
+  id,
+  major_version,
+  minor_version,
+  app_version
+)
+values (
+  true,
+  1,
+  0,
+  '1.00'
+)
+on conflict (id) do nothing;
+
+insert into public.app_update_manifest (
+  id,
+  app_version,
+  major_version,
+  minor_version,
+  is_active
+)
+values (
+  true,
+  '1.00',
+  1,
+  0,
+  true
+)
+on conflict (id) do nothing;
+
+-- Current real database release is 1.01.
+insert into public.database_release (
+  id,
+  major_version,
+  minor_version,
+  database_version,
+  release_name,
+  notes
+)
+values (
+  true,
+  1,
+  1,
+  '1.01',
+  'Initial Database',
+  'SentenceQuest database version 1.01'
+)
+on conflict (id)
+do update set
+  major_version = 1,
+  minor_version = 1,
+  database_version = '1.01';
+
+-- Remove an incorrect old "version = 1" current record.
+update public.database_versions
+set is_current = false
+where is_current = true;
+
+insert into public.database_versions (
+  version,
+  major_version,
+  minor_version,
+  display_version,
+  release_name,
+  notes,
+  checksum,
+  is_current
+)
+values (
+  101,
+  1,
+  1,
+  '1.01',
+  'Initial Database',
+  'SentenceQuest database version 1.01',
+  '1.01',
+  true
+)
+on conflict (version)
+do update set
+  major_version = 1,
+  minor_version = 1,
+  display_version = '1.01',
+  is_current = true;
+
+-- =========================================================
+-- DONE
+-- =========================================================

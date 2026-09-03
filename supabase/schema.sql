@@ -911,3 +911,153 @@ on public.user_gifts
 for all to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
+
+-- =========================================================
+-- VERSION NORMALIZATION
+-- =========================================================
+
+-- APP RELEASE
+insert into public.app_release (
+  id,
+  major_version,
+  minor_version,
+  minimum_supported_version,
+  release_notes
+)
+values (
+  true,
+  1,
+  0,
+  null,
+  'SentenceQuest initial app release'
+)
+on conflict (id)
+do update set
+  major_version = excluded.major_version,
+  minor_version = excluded.minor_version,
+  minimum_supported_version = excluded.minimum_supported_version,
+  release_notes = excluded.release_notes,
+  updated_at = now();
+
+
+-- APP UPDATE MANIFEST
+--
+-- app_version is GENERATED in the existing database.
+-- Do NOT insert/update it manually.
+
+insert into public.app_update_manifest (
+  id,
+  major_version,
+  minor_version,
+  minimum_database_version,
+  download_url,
+  release_notes,
+  is_mandatory,
+  is_active,
+  published_at
+)
+values (
+  true,
+  1,
+  0,
+  '1.01',
+  null,
+  'SentenceQuest initial app release',
+  false,
+  true,
+  now()
+)
+on conflict (id)
+do update set
+  major_version = excluded.major_version,
+  minor_version = excluded.minor_version,
+  minimum_database_version = excluded.minimum_database_version,
+  download_url = excluded.download_url,
+  release_notes = excluded.release_notes,
+  is_mandatory = excluded.is_mandatory,
+  is_active = excluded.is_active,
+  published_at = excluded.published_at,
+  updated_at = now();
+
+
+-- DATABASE RELEASE
+--
+-- database_version is GENERATED in the existing database.
+-- Do NOT insert/update it manually.
+
+insert into public.database_release (
+  id,
+  major_version,
+  minor_version,
+  release_name,
+  notes,
+  checksum,
+  published_at,
+  published_by
+)
+values (
+  true,
+  1,
+  1,
+  'Initial Database',
+  'SentenceQuest database version 1.01',
+  '1.01',
+  now(),
+  null
+)
+on conflict (id)
+do update set
+  major_version = excluded.major_version,
+  minor_version = excluded.minor_version,
+  release_name = excluded.release_name,
+  notes = excluded.notes,
+  checksum = excluded.checksum,
+  published_at = excluded.published_at,
+  published_by = excluded.published_by;
+
+
+-- DATABASE VERSIONS
+update public.database_versions
+set is_current = false
+where is_current = true;
+
+insert into public.database_versions (
+  version,
+  major_version,
+  minor_version,
+  display_version,
+  release_name,
+  notes,
+  checksum,
+  is_current,
+  published_at,
+  published_by
+)
+values (
+  101,
+  1,
+  1,
+  '1.01',
+  'Initial Database',
+  'SentenceQuest database version 1.01',
+  '1.01',
+  true,
+  now(),
+  null
+)
+on conflict (version)
+do update set
+  major_version = excluded.major_version,
+  minor_version = excluded.minor_version,
+  display_version = excluded.display_version,
+  release_name = excluded.release_name,
+  notes = excluded.notes,
+  checksum = excluded.checksum,
+  is_current = true,
+  published_at = excluded.published_at,
+  published_by = excluded.published_by;
+
+
+-- =========================================================
+-- DONE
+-- =========================================================

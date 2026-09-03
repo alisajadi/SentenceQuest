@@ -1,113 +1,114 @@
 <!doctype html>
-<html lang="en">
 
-<head>
+<html lang="en"><head>  <meta charset="utf-8"><meta
+name="viewport"
+content="width=device-width,initial-scale=1"
 
-  <meta charset="utf-8">
+«»
 
-  <meta
-    name="viewport"
-    content="width=device-width,initial-scale=1"
-  >
+<meta
+name="theme-color"
+content="#17202a"
 
-  <meta
-    name="theme-color"
-    content="#17202a"
-  >
+«»
 
   <title>
     SentenceQuest Admin
-  </title>
-
-  <link
+  </title>  <link
     rel="stylesheet"
     href="admin.css"
-  >
+  ></head><body>  <div class="shell"><aside>
 
-</head>
+  <h1>
+    SentenceQuest
+  </h1>
 
-<body>
-
-  <div class="shell">
-
-    <aside>
-
-      <h1>
-        SentenceQuest
-      </h1>
-
-      <p>
-        Admin Console
-      </p>
-
-      <nav>
-
-        <button data-view="dashboard">
-          Dashboard
-        </button>
-
-        <button data-view="vocabulary">
-          Vocabulary
-        </button>
-
-        <button data-view="grammar">
-          Grammar
-        </button>
-
-        <button data-view="lessons">
-          Lessons
-        </button>
-
-        <button data-view="collections">
-          Collections
-        </button>
-
-        <button data-view="import">
-          Import Collection
-        </button>
-
-        <button data-view="publish">
-          Publish / Sync
-        </button>
-
-        <button data-view="version">
-          App Version
-        </button>
-
-      </nav>
-
-    </aside>
+  <p>
+    Admin Console
+  </p>
 
 
-    <main>
+  <nav>
 
-      <header>
-
-        <span id="connection">
-          Not connected
-        </span>
-
-        <button id="logout">
-          Logout
-        </button>
-
-      </header>
-
-      <section id="app"></section>
-
-    </main>
-
-  </div>
+    <button data-view="dashboard">
+      Dashboard
+    </button>
 
 
-  <script
+    <button data-view="vocabulary">
+      Vocabulary
+    </button>
+
+
+    <button data-view="grammar">
+      Grammar
+    </button>
+
+
+    <button data-view="grammar-intro">
+      Grammar Intro
+    </button>
+
+
+    <button data-view="lessons">
+      Lessons
+    </button>
+
+
+    <button data-view="collections">
+      Collections
+    </button>
+
+
+    <button data-view="import">
+      Import Collection
+    </button>
+
+
+    <button data-view="publish">
+      Publish / Sync
+    </button>
+
+
+    <button data-view="database-version">
+      Database Version
+    </button>
+
+
+    <button data-view="version">
+      App Version
+    </button>
+
+  </nav>
+
+</aside>
+
+
+
+<main>
+
+
+  <header>
+
+    <span id="connection">
+      Not connected
+    </span>
+
+
+    <button id="logout">
+      Logout
+    </button>
+
+  </header>
+
+
+  <section id="app"></section>
+
+
+</main>
+
+  </div>  <script
     src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
-  ></script>
-
-  <script
+  ></script>  <script
     src="admin.js"
-  ></script>
-
-</body>
-
-</html>
+  ></script></body></html>

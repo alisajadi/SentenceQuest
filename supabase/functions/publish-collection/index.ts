@@ -256,16 +256,15 @@ Deno.serve(async (req) => {
 
     const { error: releaseUpdateError } = await db
       .from("database_release")
-      .update({
-        major_version: major,
-        minor_version: minor,
-        database_version: newVersion,
-        release_name: collection.name,
-        notes: `Published collection: ${collection.name}`,
-        checksum: newVersion,
-        published_at: now,
-        published_by: user.id,
-      })
+.update({
+  major_version: major,
+  minor_version: minor,
+  release_name: collection.name,
+  notes: `Published collection: ${collection.name}`,
+  checksum: newVersion,
+  published_at: now,
+  published_by: user.id,
+})
       .eq("id", true);
 
     if (releaseUpdateError) {

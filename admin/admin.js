@@ -1,8 +1,3 @@
-/* =========================================================
-   SENTENCEQUEST ADMIN
-   FINAL ADMIN.JS
-   ========================================================= */
-
 const SUPABASE_URL =
   "https://rmzmlehgsksvrlefyvqa.supabase.co";
 
@@ -21,20 +16,12 @@ const app =
   document.getElementById("app");
 
 const conn =
-  document.getElementById(
-    "connection"
-  );
+  document.getElementById("connection");
 
-
-/* =========================================================
-   HELPERS
-   ========================================================= */
 
 function esc(value) {
 
-  return String(
-    value ?? ""
-  ).replace(
+  return String(value ?? "").replace(
     /[&<>"']/g,
     (c) =>
       ({
@@ -49,7 +36,7 @@ function esc(value) {
 }
 
 
-function pretty(value) {
+function jsonText(value) {
 
   if (
     value === null ||
@@ -72,48 +59,9 @@ function pretty(value) {
 }
 
 
-function showError(error) {
-
-  console.error(error);
-
-  const message =
-    error?.message ||
-    error?.error_description ||
-    String(error);
-
-  app.innerHTML = `
-    <div class="panel">
-
-      <h2>Error</h2>
-
-      <p class="error">
-        ${esc(message)}
-      </p>
-
-      <button
-        id="retryButton"
-      >
-        Retry
-      </button>
-
-    </div>
-  `;
-
-  const retry =
-    document.getElementById(
-      "retryButton"
-    );
-
-  if (retry) {
-    retry.onclick =
-      () => dashboard();
-  }
-}
-
-
 /* =========================================================
    BOOT
-   ========================================================= */
+========================================================= */
 
 async function boot() {
 
@@ -127,40 +75,117 @@ async function boot() {
     } =
       await sb.auth.getSession();
 
+
     if (error) {
+
       login(error.message);
+
       return;
     }
+
 
     if (!session) {
+
       login();
+
       return;
     }
 
-    await checkAdmin(
-      session
-    );
+
+    const {
+      data: profile,
+      error: profileError
+    } =
+      await sb
+        .from("profiles")
+        .select(
+          "id,display_name,role"
+        )
+        .eq(
+          "id",
+          session.user.id
+        )
+        .maybeSingle();
+
+
+    if (profileError) {
+
+      login(
+        "Profile error: " +
+        profileError.message
+      );
+
+      return;
+    }
+
+
+    if (!profile) {
+
+      await sb.auth.signOut();
+
+      login(
+        "Your account has no profile record."
+      );
+
+      return;
+    }
+
+
+    if (
+      profile.role !== "admin"
+    ) {
+
+      await sb.auth.signOut();
+
+      login(
+        "This account does not have admin access. Current role: " +
+        profile.role
+      );
+
+      return;
+    }
+
+
+    conn.textContent =
+      "Connected as " +
+      (
+        profile.display_name ||
+        "Admin"
+      );
+
+
+    dashboard();
+
 
   } catch (error) {
 
-    showError(error);
+    console.error(error);
+
+    login(
+      error?.message ||
+      "Unexpected error."
+    );
 
   }
+
 }
 
 
 /* =========================================================
    LOGIN
-   ========================================================= */
+========================================================= */
 
 function login(
   message = ""
 ) {
 
   if (conn) {
+
     conn.textContent =
       "Not connected";
+
   }
+
 
   app.innerHTML = `
 
@@ -194,9 +219,7 @@ function login(
         autocomplete="current-password"
       >
 
-      <button
-        id="sign"
-      >
+      <button id="sign">
         Sign in
       </button>
 
@@ -216,10 +239,12 @@ function login(
           .value
           .trim();
 
+
       const password =
         document
           .getElementById("password")
           .value;
+
 
       if (
         !email ||
@@ -238,6 +263,7 @@ function login(
         document
           .getElementById("sign");
 
+
       button.disabled =
         true;
 
@@ -246,7 +272,6 @@ function login(
 
 
       const {
-        data,
         error
       } =
         await sb.auth
@@ -272,12 +297,6 @@ function login(
       }
 
 
-      console.log(
-        "Login successful:",
-        data.user
-      );
-
-
       await boot();
 
     };
@@ -286,88 +305,8 @@ function login(
 
 
 /* =========================================================
-   ADMIN CHECK
-   ========================================================= */
-
-async function checkAdmin(
-  session
-) {
-
-  const {
-    data: profile,
-    error
-  } =
-    await sb
-      .from("profiles")
-      .select(
-        "id,display_name,role"
-      )
-      .eq(
-        "id",
-        session.user.id
-      )
-      .maybeSingle();
-
-
-  if (error) {
-
-    login(
-      "Profile error: " +
-      error.message
-    );
-
-    return;
-  }
-
-
-  if (!profile) {
-
-    await sb.auth.signOut();
-
-    login(
-      "Your account has no profile record."
-    );
-
-    return;
-  }
-
-
-  if (
-    profile.role !==
-    "admin"
-  ) {
-
-    await sb.auth.signOut();
-
-    login(
-      "This account does not have admin access. Current role: " +
-      profile.role
-    );
-
-    return;
-  }
-
-
-  if (conn) {
-
-    conn.textContent =
-      "Connected as " +
-      (
-        profile.display_name ||
-        "Admin"
-      );
-
-  }
-
-
-  dashboard();
-
-}
-
-
-/* =========================================================
    COUNT
-   ========================================================= */
+========================================================= */
 
 async function count(
   table
@@ -382,26 +321,27 @@ async function count(
       .select(
         "*",
         {
-          count:
-            "exact",
-          head:
-            true
+          count: "exact",
+          head: true
         }
       );
 
 
   if (error) {
+
     throw error;
+
   }
 
 
   return count || 0;
+
 }
 
 
 /* =========================================================
    DASHBOARD
-   ========================================================= */
+========================================================= */
 
 async function dashboard() {
 
@@ -409,9 +349,9 @@ async function dashboard() {
 
     const [
       vocabulary,
+      grammar,
       lessons,
       collections,
-      grammar,
       patterns
     ] =
       await Promise.all([
@@ -421,15 +361,15 @@ async function dashboard() {
         ),
 
         count(
+          "grammar"
+        ),
+
+        count(
           "lessons"
         ),
 
         count(
           "collections"
-        ),
-
-        count(
-          "grammar"
         ),
 
         count(
@@ -445,41 +385,32 @@ async function dashboard() {
         Dashboard
       </h2>
 
+
       <div class="grid">
 
         <div class="stat">
           Vocabulary
-          <b>
-            ${vocabulary}
-          </b>
+          <b>${vocabulary}</b>
         </div>
 
         <div class="stat">
           Grammar
-          <b>
-            ${grammar}
-          </b>
+          <b>${grammar}</b>
         </div>
 
         <div class="stat">
           Patterns
-          <b>
-            ${patterns}
-          </b>
+          <b>${patterns}</b>
         </div>
 
         <div class="stat">
           Lessons
-          <b>
-            ${lessons}
-          </b>
+          <b>${lessons}</b>
         </div>
 
         <div class="stat">
           Collections
-          <b>
-            ${collections}
-          </b>
+          <b>${collections}</b>
         </div>
 
       </div>
@@ -491,15 +422,12 @@ async function dashboard() {
           Import Collection
         </h3>
 
-        <p>
-          Import a SentenceQuest JSON collection.
-        </p>
-
         <input
           id="collectionFile"
           type="file"
           accept=".json,application/json"
         >
+
 
         <div class="toolbar">
 
@@ -517,27 +445,11 @@ async function dashboard() {
 
         </div>
 
+
         <div
           id="importStatus"
           class="status"
         ></div>
-
-      </div>
-
-
-      <div class="panel">
-
-        <h3>
-          SentenceQuest Architecture
-        </h3>
-
-        <p>
-          PostgreSQL master →
-          protected API →
-          mobile local database →
-          offline mode →
-          incremental synchronization.
-        </p>
 
       </div>
 
@@ -546,18 +458,18 @@ async function dashboard() {
 
     document
       .getElementById(
-        "refreshDashboard"
-      )
-      .onclick =
-      () => dashboard();
-
-
-    document
-      .getElementById(
         "importCollection"
       )
       .onclick =
       importCollection;
+
+
+    document
+      .getElementById(
+        "refreshDashboard"
+      )
+      .onclick =
+      dashboard;
 
 
   } catch (error) {
@@ -570,8 +482,8 @@ async function dashboard() {
 
 
 /* =========================================================
-   IMPORT COLLECTION
-   ========================================================= */
+   IMPORT
+========================================================= */
 
 async function importCollection() {
 
@@ -580,10 +492,12 @@ async function importCollection() {
       "collectionFile"
     );
 
+
   const status =
     document.getElementById(
       "importStatus"
     );
+
 
   const button =
     document.getElementById(
@@ -605,24 +519,6 @@ async function importCollection() {
   }
 
 
-  const file =
-    fileInput.files[0];
-
-
-  if (
-    !file.name
-      .toLowerCase()
-      .endsWith(".json")
-  ) {
-
-    alert(
-      "Please select a JSON file."
-    );
-
-    return;
-  }
-
-
   try {
 
     button.disabled =
@@ -632,8 +528,12 @@ async function importCollection() {
       "Importing...";
 
 
-    status.innerHTML =
+    status.textContent =
       "Reading collection...";
+
+
+    const file =
+      fileInput.files[0];
 
 
     const text =
@@ -651,14 +551,14 @@ async function importCollection() {
     } catch {
 
       throw new Error(
-        "The selected file is not valid JSON."
+        "Invalid JSON file."
       );
 
     }
 
 
     if (
-      collection?.format !==
+      collection.format !==
       "sentencequest.collection"
     ) {
 
@@ -674,7 +574,7 @@ async function importCollection() {
     ) {
 
       throw new Error(
-        "Collection is missing language.code."
+        "Missing language.code."
       );
 
     }
@@ -685,14 +585,14 @@ async function importCollection() {
     ) {
 
       throw new Error(
-        "Collection is missing collection.slug."
+        "Missing collection.slug."
       );
 
     }
 
 
-    status.innerHTML =
-      "Uploading collection to Supabase...";
+    status.textContent =
+      "Sending collection to Supabase...";
 
 
     const {
@@ -711,22 +611,15 @@ async function importCollection() {
     if (error) {
 
       console.error(
-        "Edge Function error:",
         error
       );
 
       throw new Error(
         error.message ||
-        "Import Edge Function failed."
+        "Import function failed."
       );
 
     }
-
-
-    console.log(
-      "Import response:",
-      data
-    );
 
 
     if (
@@ -751,37 +644,27 @@ async function importCollection() {
       <br><br>
 
       Collection:
-      ${esc(
-        data.collection
-      )}
+      ${esc(data.collection)}
 
       <br>
 
       Vocabulary:
-      ${esc(
-        data.vocabulary_count
-      )}
+      ${esc(data.vocabulary_count)}
 
       <br>
 
       Grammar:
-      ${esc(
-        data.grammar_count
-      )}
+      ${esc(data.grammar_count)}
 
       <br>
 
       Patterns:
-      ${esc(
-        data.pattern_count
-      )}
+      ${esc(data.pattern_count)}
 
       <br>
 
       Lessons:
-      ${esc(
-        data.lesson_count
-      )}
+      ${esc(data.lesson_count)}
 
     `;
 
@@ -791,7 +674,7 @@ async function importCollection() {
     );
 
 
-    await dashboard();
+    dashboard();
 
 
   } catch (error) {
@@ -802,11 +685,6 @@ async function importCollection() {
     );
 
 
-    const message =
-      error?.message ||
-      String(error);
-
-
     status.innerHTML = `
 
       <strong class="error">
@@ -815,14 +693,20 @@ async function importCollection() {
 
       <br><br>
 
-      ${esc(message)}
+      ${esc(
+        error.message ||
+        String(error)
+      )}
 
     `;
 
 
     alert(
       "Import failed: " +
-      message
+      (
+        error.message ||
+        String(error)
+      )
     );
 
 
@@ -845,7 +729,7 @@ async function importCollection() {
 
 /* =========================================================
    TABLE VIEW
-   ========================================================= */
+========================================================= */
 
 async function tableView(
   table,
@@ -868,7 +752,9 @@ async function tableView(
 
 
     if (error) {
+
       throw error;
+
     }
 
 
@@ -878,10 +764,11 @@ async function tableView(
         ${esc(title)}
       </h2>
 
+
       <div class="toolbar">
 
         <button
-          id="ref"
+          id="tableRefresh"
         >
           Refresh
         </button>
@@ -927,7 +814,7 @@ async function tableView(
 
                               <td>
                                 ${esc(
-                                  pretty(
+                                  jsonText(
                                     row[column]
                                   )
                                 )}
@@ -955,7 +842,9 @@ async function tableView(
 
 
     document
-      .getElementById("ref")
+      .getElementById(
+        "tableRefresh"
+      )
       .onclick =
       () =>
         tableView(
@@ -976,7 +865,7 @@ async function tableView(
 
 /* =========================================================
    GRAMMAR INTRO
-   ========================================================= */
+========================================================= */
 
 async function grammarIntro() {
 
@@ -1019,7 +908,9 @@ async function grammarIntro() {
 
 
     if (error) {
+
       throw error;
+
     }
 
 
@@ -1029,18 +920,36 @@ async function grammarIntro() {
         Grammar Intro
       </h2>
 
+
       <div class="panel">
 
         <p>
-          Each lesson can have a short grammar
-          introduction with text, image, audio
-          and video.
+          Grammar introduction for lessons.
         </p>
 
-        <p class="muted">
-          Upload management will be connected
-          to Supabase Storage in the next stage.
+        <p>
+          Each lesson can contain:
         </p>
+
+        <ul>
+
+          <li>
+            Text
+          </li>
+
+          <li>
+            Image
+          </li>
+
+          <li>
+            Audio
+          </li>
+
+          <li>
+            Video
+          </li>
+
+        </ul>
 
       </div>
 
@@ -1055,14 +964,31 @@ async function grammarIntro() {
                 <div class="panel">
 
                   <h3>
-                    ${esc(item.title)}
+                    ${esc(
+                      item.title
+                    )}
                   </h3>
+
 
                   <p>
                     ${esc(
                       item.short_text
                     )}
                   </p>
+
+
+                  ${
+                    item.detailed_text
+                      ? `
+                        <p>
+                          ${esc(
+                            item.detailed_text
+                          )}
+                        </p>
+                      `
+                      : ""
+                  }
+
 
                   ${
                     item.image_url
@@ -1077,6 +1003,7 @@ async function grammarIntro() {
                       : ""
                   }
 
+
                   ${
                     item.audio_url
                       ? `
@@ -1089,6 +1016,7 @@ async function grammarIntro() {
                       `
                       : ""
                   }
+
 
                   ${
                     item.video_url
@@ -1114,6 +1042,7 @@ async function grammarIntro() {
 
     `;
 
+
   } catch (error) {
 
     showError(error);
@@ -1124,8 +1053,8 @@ async function grammarIntro() {
 
 
 /* =========================================================
-   FRONT CONFIG
-   ========================================================= */
+   CONFIG
+========================================================= */
 
 async function config() {
 
@@ -1151,7 +1080,9 @@ async function config() {
 
 
     if (error) {
+
       throw error;
+
     }
 
 
@@ -1161,11 +1092,8 @@ async function config() {
         Front Config
       </h2>
 
-      <div class="panel">
 
-        <p>
-          Front-end configuration.
-        </p>
+      <div class="panel">
 
         <div class="table-wrap">
 
@@ -1191,6 +1119,7 @@ async function config() {
 
             </thead>
 
+
             <tbody>
 
               ${
@@ -1201,12 +1130,14 @@ async function config() {
                       <tr>
 
                         <td>
-                          ${esc(row.key)}
+                          ${esc(
+                            row.key
+                          )}
                         </td>
 
                         <td>
                           <pre>${esc(
-                            pretty(
+                            jsonText(
                               row.value
                             )
                           )}</pre>
@@ -1235,6 +1166,7 @@ async function config() {
 
     `;
 
+
   } catch (error) {
 
     showError(error);
@@ -1246,7 +1178,7 @@ async function config() {
 
 /* =========================================================
    DATABASE VERSION
-   ========================================================= */
+========================================================= */
 
 async function databaseVersion() {
 
@@ -1261,7 +1193,15 @@ async function databaseVersion() {
           "database_versions"
         )
         .select(
-          "id,version,release_name,checksum,notes,created_at,is_current"
+          `
+          id,
+          version,
+          release_name,
+          checksum,
+          notes,
+          created_at,
+          is_current
+          `
         )
         .order(
           "version",
@@ -1273,7 +1213,9 @@ async function databaseVersion() {
 
 
     if (error) {
+
       throw error;
+
     }
 
 
@@ -1283,11 +1225,8 @@ async function databaseVersion() {
         Database Version
       </h2>
 
-      <div class="panel">
 
-        <p>
-          Database migration history.
-        </p>
+      <div class="panel">
 
         <div class="table-wrap">
 
@@ -1320,6 +1259,7 @@ async function databaseVersion() {
               </tr>
 
             </thead>
+
 
             <tbody>
 
@@ -1379,6 +1319,7 @@ async function databaseVersion() {
 
     `;
 
+
   } catch (error) {
 
     showError(error);
@@ -1390,7 +1331,7 @@ async function databaseVersion() {
 
 /* =========================================================
    APP VERSION
-   ========================================================= */
+========================================================= */
 
 async function appVersion() {
 
@@ -1405,7 +1346,15 @@ async function appVersion() {
           "app_release"
         )
         .select(
-          "id,major_version,minor_version,app_version,minimum_supported_version,release_notes,updated_at"
+          `
+          id,
+          major_version,
+          minor_version,
+          app_version,
+          minimum_supported_version,
+          release_notes,
+          updated_at
+          `
         )
         .eq(
           "id",
@@ -1415,7 +1364,9 @@ async function appVersion() {
 
 
     if (error) {
+
       throw error;
+
     }
 
 
@@ -1427,14 +1378,11 @@ async function appVersion() {
           App Version
         </h2>
 
+
         <div class="panel">
 
-          <p class="warning">
-            app_release table is not available yet.
-          </p>
-
-          <p>
-            Run the version migration SQL first.
+          <p class="error">
+            App release record not found.
           </p>
 
         </div>
@@ -1442,6 +1390,7 @@ async function appVersion() {
       `;
 
       return;
+
     }
 
 
@@ -1451,7 +1400,12 @@ async function appVersion() {
         App Version
       </h2>
 
+
       <div class="panel">
+
+        <h3>
+          Current version
+        </h3>
 
         <div class="version">
           ${esc(
@@ -1459,8 +1413,9 @@ async function appVersion() {
           )}
         </div>
 
+
         <p>
-          Major:
+          Major version:
           <strong>
             ${esc(
               data.major_version
@@ -1468,8 +1423,9 @@ async function appVersion() {
           </strong>
         </p>
 
+
         <p>
-          Minor:
+          Minor version:
           <strong>
             ${esc(
               data.minor_version
@@ -1477,12 +1433,14 @@ async function appVersion() {
           </strong>
         </p>
 
+
         <p>
-          Minimum supported:
+          Minimum supported version:
           ${esc(
             data.minimum_supported_version
           )}
         </p>
+
 
         <p>
           ${esc(
@@ -1490,14 +1448,8 @@ async function appVersion() {
           )}
         </p>
 
-        <p class="muted">
-          Updated:
-          ${esc(
-            data.updated_at
-          )}
-        </p>
-
       </div>
+
 
       <div class="panel">
 
@@ -1506,24 +1458,23 @@ async function appVersion() {
         </h3>
 
         <p>
-          Database/content changes increase
-          the decimal part.
+          Content/database update:
+          1.07 → 1.08
         </p>
 
         <p>
-          Example:
-          1.07 → 1.08 → 1.09
-        </p>
-
-        <p>
-          Major structural releases are entered
-          manually:
+          Major structural update:
           1.99 → 2.00
+        </p>
+
+        <p>
+          Major version is changed manually.
         </p>
 
       </div>
 
     `;
+
 
   } catch (error) {
 
@@ -1536,9 +1487,9 @@ async function appVersion() {
 
 /* =========================================================
    PUBLISH / SYNC
-   ========================================================= */
+========================================================= */
 
-async function sync() {
+async function publishView() {
 
   try {
 
@@ -1551,7 +1502,14 @@ async function sync() {
           "collections"
         )
         .select(
-          "id,name,slug,version,is_published,updated_at"
+          `
+          id,
+          name,
+          slug,
+          version,
+          is_published,
+          updated_at
+          `
         )
         .order(
           "updated_at",
@@ -1562,7 +1520,9 @@ async function sync() {
 
 
     if (error) {
+
       throw error;
+
     }
 
 
@@ -1572,16 +1532,21 @@ async function sync() {
         Publish / Sync
       </h2>
 
+
       <div class="panel">
 
-        <h3>
-          Collections
-        </h3>
-
-        <p class="muted">
+        <p>
           Import creates draft content.
-          Publish makes selected content
+        </p>
+
+        <p>
+          Publish makes the collection
           available to the application.
+        </p>
+
+        <p>
+          Publishing also increments
+          the database version.
         </p>
 
       </div>
@@ -1602,40 +1567,41 @@ async function sync() {
                     )}
                   </h3>
 
+
                   <p>
+                    Slug:
                     ${esc(
                       collection.slug
                     )}
                   </p>
 
+
                   <p>
-                    Version:
+                    Collection version:
                     ${esc(
                       collection.version
                     )}
                   </p>
 
+
                   <p>
-
                     Status:
-
-                    <span class="badge">
-
-                      ${
-                        collection.is_published
-                          ? "Published"
-                          : "Draft"
-                      }
-
-                    </span>
-
+                    ${
+                      collection.is_published
+                        ? "Published"
+                        : "Draft"
+                    }
                   </p>
 
 
                   ${
-                    !collection.is_published
+                    collection.is_published
                       ? `
-
+                        <span class="success">
+                          Published
+                        </span>
+                      `
+                      : `
                         <button
                           data-publish-id="${esc(
                             collection.id
@@ -1643,12 +1609,6 @@ async function sync() {
                         >
                           Publish
                         </button>
-
-                      `
-                      : `
-                        <span class="success">
-                          Published
-                        </span>
                       `
                   }
 
@@ -1698,7 +1658,7 @@ async function sync() {
 
 /* =========================================================
    PUBLISH COLLECTION
-   ========================================================= */
+========================================================= */
 
 async function publishCollection(
   collectionId
@@ -1715,13 +1675,15 @@ async function publishCollection(
       "Publish this collection?"
     )
   ) {
+
     return;
+
   }
 
 
   try {
 
-    status.innerHTML =
+    status.textContent =
       "Publishing...";
 
 
@@ -1742,10 +1704,6 @@ async function publishCollection(
 
     if (error) {
 
-      console.error(
-        error
-      );
-
       throw new Error(
         error.message ||
         "Publish function failed."
@@ -1761,7 +1719,7 @@ async function publishCollection(
 
       throw new Error(
         data?.error ||
-        "Publishing failed."
+        "Publish failed."
       );
 
     }
@@ -1782,20 +1740,21 @@ async function publishCollection(
 
       <br>
 
-      App version:
+      Published lessons:
       ${esc(
-        data.app_version
+        data.published_lessons
       )}
 
     `;
 
 
-    await sync();
+    await publishView();
 
 
   } catch (error) {
 
     console.error(
+      "PUBLISH ERROR:",
       error
     );
 
@@ -1809,7 +1768,8 @@ async function publishCollection(
       <br><br>
 
       ${esc(
-        error.message
+        error.message ||
+        String(error)
       )}
 
     `;
@@ -1820,8 +1780,61 @@ async function publishCollection(
 
 
 /* =========================================================
+   ERROR
+========================================================= */
+
+function showError(
+  error
+) {
+
+  console.error(error);
+
+
+  app.innerHTML = `
+
+    <div class="panel">
+
+      <h2>
+        Error
+      </h2>
+
+      <p class="error">
+        ${esc(
+          error?.message ||
+          String(error)
+        )}
+      </p>
+
+      <button
+        id="errorRetry"
+      >
+        Retry
+      </button>
+
+    </div>
+
+  `;
+
+
+  const retry =
+    document.getElementById(
+      "errorRetry"
+    );
+
+
+  if (retry) {
+
+    retry.onclick =
+      dashboard;
+
+  }
+
+}
+
+
+/* =========================================================
    NAVIGATION
-   ========================================================= */
+========================================================= */
 
 function view(
   value
@@ -1830,7 +1843,9 @@ function view(
   switch (value) {
 
     case "dashboard":
+
       dashboard();
+
       break;
 
 
@@ -1847,6 +1862,30 @@ function view(
           "is_active"
         ]
       );
+
+      break;
+
+
+    case "grammar":
+
+      tableView(
+        "grammar",
+        "Grammar",
+        [
+          "code",
+          "name",
+          "level",
+          "description",
+          "is_active"
+        ]
+      );
+
+      break;
+
+
+    case "grammar-intro":
+
+      grammarIntro();
 
       break;
 
@@ -1886,49 +1925,43 @@ function view(
       break;
 
 
-    case "grammar":
+    case "import":
 
-      tableView(
-        "grammar",
-        "Grammar",
-        [
-          "name",
-          "code",
-          "level",
-          "description",
-          "is_active"
-        ]
-      );
+      dashboard();
+
+      break;
+
+
+    case "publish":
+
+      publishView();
 
       break;
 
 
     case "config":
+
       config();
-      break;
 
-
-    case "sync":
-      sync();
-      break;
-
-
-    case "app-version":
-      appVersion();
-      break;
-
-
-    case "grammar-intro":
-      grammarIntro();
       break;
 
 
     case "database-version":
+
       databaseVersion();
+
+      break;
+
+
+    case "version":
+
+      appVersion();
+
       break;
 
 
     default:
+
       dashboard();
 
   }
@@ -1938,7 +1971,7 @@ function view(
 
 /* =========================================================
    NAV BUTTONS
-   ========================================================= */
+========================================================= */
 
 document
   .querySelectorAll(
@@ -1950,29 +1983,9 @@ document
       button.onclick =
         () => {
 
-          const value =
-            button.dataset.v;
-
-          document
-            .querySelectorAll(
-              "nav button"
-            )
-            .forEach(
-              item =>
-                item.classList
-                  .remove(
-                    "active"
-                  )
-            );
-
-
-          button.classList
-            .add(
-              "active"
-            );
-
-
-          view(value);
+          view(
+            button.dataset.view
+          );
 
         };
 
@@ -1982,17 +1995,17 @@ document
 
 /* =========================================================
    LOGOUT
-   ========================================================= */
+========================================================= */
 
-const logoutButton =
+const logout =
   document.getElementById(
     "logout"
   );
 
 
-if (logoutButton) {
+if (logout) {
 
-  logoutButton.onclick =
+  logout.onclick =
     async () => {
 
       await sb.auth.signOut();
@@ -2006,6 +2019,6 @@ if (logoutButton) {
 
 /* =========================================================
    START
-   ========================================================= */
+========================================================= */
 
 boot();

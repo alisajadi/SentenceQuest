@@ -1,17 +1,20 @@
 {
   "format": "sentencequest.collection",
   "version": 1,
+
   "language": {
     "code": "en",
     "name": "English",
     "native_name": "English"
   },
+
   "collection": {
     "slug": "a1-food-present-simple-001",
     "name": "A1 Food — Present Simple",
-    "description": "Starter collection",
+    "description": "Starter collection for Present Simple.",
     "publish": false
   },
+
   "vocabulary": [
     {
       "id": "S001",
@@ -24,6 +27,7 @@
         "number": "singular"
       }
     },
+
     {
       "id": "S002",
       "word": "You",
@@ -34,6 +38,7 @@
         "person": 2
       }
     },
+
     {
       "id": "S003",
       "word": "She",
@@ -45,6 +50,7 @@
         "number": "singular"
       }
     },
+
     {
       "id": "S004",
       "word": "They",
@@ -56,6 +62,7 @@
         "number": "plural"
       }
     },
+
     {
       "id": "V001",
       "word": "eat",
@@ -71,6 +78,7 @@
         "ing": "eating"
       }
     },
+
     {
       "id": "V002",
       "word": "read",
@@ -86,6 +94,7 @@
         "ing": "reading"
       }
     },
+
     {
       "id": "V003",
       "word": "play",
@@ -101,6 +110,7 @@
         "ing": "playing"
       }
     },
+
     {
       "id": "O001",
       "word": "an apple",
@@ -112,6 +122,7 @@
         "article": "an"
       }
     },
+
     {
       "id": "O002",
       "word": "a book",
@@ -123,6 +134,7 @@
         "article": "a"
       }
     },
+
     {
       "id": "O003",
       "word": "football",
@@ -131,17 +143,20 @@
       "level": "A1"
     }
   ],
+
   "grammar": [
     {
       "code": "present_simple",
       "name": "Present Simple",
       "level": "A1",
+      "description": "The Present Simple is used for habits, routines and facts that are generally true.",
       "rules": {
         "third_person_singular": "third_person",
         "otherwise": "base"
       }
     }
   ],
+
   "patterns": [
     {
       "code": "SVO",
@@ -156,19 +171,23 @@
       }
     }
   ],
+
   "lessons": [
     {
       "slug": "a1-food-001",
       "title": "I eat an apple",
       "level": "A1",
       "order_index": 1,
+
       "grammar_code": "present_simple",
       "pattern_code": "SVO",
+
       "target_sentence": [
         "I",
         "eat",
         "an apple"
       ],
+
       "available_words": [
         "S001",
         "V001",
@@ -180,9 +199,30 @@
         "V003",
         "O003"
       ],
+
       "base_xp": 50,
       "creativity_xp": 20,
+
       "hint": "Start with the subject “I”.",
+
+      "grammar_intro": {
+        "title": "Present Simple",
+
+        "short_text": "We use the Present Simple for habits, routines and facts.",
+
+        "detailed_text": "The Present Simple is one of the most important English tenses. We use it to talk about habits, routines and facts that are generally true. With I, you, we and they, we normally use the base form of the verb. With he, she and it, the verb usually takes -s or -es.",
+
+        "image_url": "",
+
+        "audio_url": "",
+
+        "video_url": "",
+
+        "audio_duration_seconds": null,
+
+        "video_duration_seconds": null
+      },
+
       "publish": false
     }
   ]

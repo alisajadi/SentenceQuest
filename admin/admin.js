@@ -1,25 +1,9 @@
-const SUPABASE_URL =
-  "https://rmzmlehgsksvrlefyvqa.supabase.co";
+const SUPABASE_URL = "https://rmzmlehgsksvrlefyvqa.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mGaig4vsOn0UUYOXLLl-_g_MEKvIW8r";
 
-const SUPABASE_ANON_KEY =
-  "sb_publishable_mGaig4vsOn0UUYOXLLl-_g_MEKvIW8r";
-
-const sb =
-  window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
-
-const app =
-  document.getElementById("app");
-
-const conn =
-  document.getElementById("connection");
-
-
-/* =========================================================
-   CONSTANTS
-========================================================= */
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const app = document.getElementById("app");
+const conn = document.getElementById("connection");
 
 const INVENTORY_TABLES = [
   ["languages", "Languages"],
@@ -36,2685 +20,679 @@ const INVENTORY_TABLES = [
   ["collection_items", "Collection Items"],
   ["gifts", "Gifts"],
   ["database_versions", "DB Versions"],
-  ["sync_changes", "Sync Changes"]
+  ["sync_changes", "Sync Changes"],
 ];
 
-const IMPORT_TABLES =
-  INVENTORY_TABLES.slice(
-    0,
-    13
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  })[c]);
+}
+
+function jsonText(value) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") return JSON.stringify(value, null, 2);
+  return String(value);
+}
+
+function versionString(major, minor) {
+  return `${Number(major)}.${String(Number(minor)).padStart(2, "0")}`;
+}
+
+function setActiveNav(viewName) {
+  document.querySelectorAll("nav button").forEach((button) => {
+    button.classList.toggle("active", button.dataset.view === viewName);
+  });
+}
+
+async function boot() {
+  try {
+    const { data: { session }, error } = await sb.auth.getSession();
+
+    if (error) {
+      login(error.message);
+      return;
+    }
+
+    if (!session) {
+      login();
+      return;
+    }
+
+    const { data: profile, error: profileError } = await sb
+      .from("profiles")
+      .select("id,display_name,role")
+      .eq("id", session.user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      login(`Profile error: ${profileError.message}`);
+      return;
+    }
+
+    if (!profile) {
+      await sb.auth.signOut();
+      login("Your account has no profile record.");
+      return;
+    }
+
+    if (profile.role !== "admin") {
+      await sb.auth.signOut();
+      login(`This account does not have admin access. Current role: ${profile.role}`);
+      return;
+    }
+
+    conn.textContent = `Connected as ${profile.display_name || "Admin"}`;
+    dashboard();
+  } catch (error) {
+    console.error(error);
+    login(error?.message || "Unexpected error.");
+  }
+}
+
+function login(message = "") {
+  conn.textContent = "Not connected";
+
+  app.innerHTML = `
+    <div class="login">
+      <h2>SentenceQuest Admin</h2>
+      ${message ? `<p class="error">${esc(message)}</p>` : ""}
+      <input id="email" type="email" placeholder="Email" autocomplete="username">
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+      <button id="sign">Sign in</button>
+    </div>
+  `;
+
+  document.getElementById("sign").onclick = async () => {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    if (!email || !password) {
+      alert("Enter email and password.");
+      return;
+    }
+
+    const button = document.getElementById("sign");
+    button.disabled = true;
+    button.textContent = "Signing in...";
+
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      button.disabled = false;
+      button.textContent = "Sign in";
+      alert(error.message);
+      return;
+    }
+
+    await boot();
+  };
+}
+
+async function count(table) {
+  const { count: value, error } = await sb
+    .from(table)
+    .select("*", { count: "exact", head: true });
+
+  if (error) throw error;
+  return value || 0;
+}
+
+async function getInventory(includeVersionTables = true) {
+  const tables = includeVersionTables
+    ? INVENTORY_TABLES
+    : INVENTORY_TABLES.filter(([name]) =>
+        !["database_versions", "sync_changes"].includes(name)
+      );
+
+  const results = await Promise.all(
+    tables.map(async ([table, label]) => ({
+      table,
+      label,
+      count: await count(table),
+    }))
   );
 
+  return results;
+}
+
+function inventoryHtml(rows) {
+  return `
+    <div class="grid">
+      ${rows.map((row) => `
+        <div class="stat">
+          ${esc(row.label)}
+          <b>${esc(row.count)}</b>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+async function dashboard() {
+  setActiveNav("dashboard");
+
+  try {
+    const rows = await getInventory(true);
+
+    app.innerHTML = `
+      <h2>Dashboard</h2>
+      ${inventoryHtml(rows)}
+
+      <div class="panel">
+        <h3>SentenceQuest Content System</h3>
+        <p>Dashboard shows the current database inventory only.</p>
+        <p>Import adds or updates content without publishing it.</p>
+        <p>Publish creates the next database version and sync changes.</p>
+      </div>
+    `;
+  } catch (error) {
+    showError(error);
+  }
+}
 
 let lastImportResult = null;
 
-let lastImportInventoryBefore =
-  null;
-
-let lastImportInventoryAfter =
-  null;
-
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function esc(value) {
-
-  return String(
-    value ?? ""
-  ).replace(
-    /[&<>"']/g,
-    (c) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-      })[c]
-  );
-
-}
-
-
-function jsonText(value) {
-
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return "";
-  }
-
-  if (
-    typeof value ===
-    "object"
-  ) {
-
-    return JSON.stringify(
-      value,
-      null,
-      2
-    );
-
-  }
-
-  return String(value);
-
-}
-
-
-function versionString(
-  major,
-  minor
-) {
-
-  return (
-    `${Number(major)}.` +
-    `${String(
-      Number(minor)
-    ).padStart(
-      2,
-      "0"
-    )}`
-  );
-
-}
-
-
-function setStatus(
-  id,
-  html,
-  className = ""
-) {
-
-  const element =
-    document.getElementById(
-      id
-    );
-
-  if (!element) {
-    return;
-  }
-
-  element.className =
-    `status ${className}`.trim();
-
-  element.innerHTML =
-    html;
-
-}
-
-
-/* =========================================================
-   BOOT
-========================================================= */
-
-async function boot() {
-
-  try {
-
-    const {
-      data: {
-        session
-      },
-      error
-    } =
-      await sb.auth.getSession();
-
-
-    if (error) {
-
-      login(
-        error.message
-      );
-
-      return;
-
-    }
-
-
-    if (!session) {
-
-      login();
-
-      return;
-
-    }
-
-
-    const {
-      data: profile,
-      error: profileError
-    } =
-      await sb
-        .from(
-          "profiles"
-        )
-        .select(
-          "id,display_name,role"
-        )
-        .eq(
-          "id",
-          session.user.id
-        )
-        .maybeSingle();
-
-
-    if (profileError) {
-
-      login(
-        "Profile error: " +
-        profileError.message
-      );
-
-      return;
-
-    }
-
-
-    if (!profile) {
-
-      await sb.auth.signOut();
-
-      login(
-        "Your account has no profile record."
-      );
-
-      return;
-
-    }
-
-
-    if (
-      profile.role !==
-      "admin"
-    ) {
-
-      await sb.auth.signOut();
-
-      login(
-        "This account does not have admin access. Current role: " +
-        profile.role
-      );
-
-      return;
-
-    }
-
-
-    conn.textContent =
-      "Connected as " +
-      (
-        profile.display_name ||
-        "Admin"
-      );
-
-
-    await dashboard();
-
-
-  } catch (error) {
-
-    console.error(
-      error
-    );
-
-    login(
-      error?.message ||
-      "Unexpected error."
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   LOGIN
-========================================================= */
-
-function login(
-  message = ""
-) {
-
-  conn.textContent =
-    "Not connected";
-
-
-  app.innerHTML = `
-
-    <div class="login">
-
-      <h2>
-        SentenceQuest Admin
-      </h2>
-
-      ${
-        message
-          ? `
-            <p class="error">
-              ${esc(message)}
-            </p>
-          `
-          : ""
-      }
-
-      <input
-        id="email"
-        type="email"
-        placeholder="Email"
-        autocomplete="username"
-      >
-
-      <input
-        id="password"
-        type="password"
-        placeholder="Password"
-        autocomplete="current-password"
-      >
-
-      <button
-        id="sign"
-      >
-        Sign in
-      </button>
-
-    </div>
-
-  `;
-
-
-  document
-    .getElementById(
-      "sign"
-    )
-    .onclick =
-    async () => {
-
-      const email =
-        document
-          .getElementById(
-            "email"
-          )
-          .value
-          .trim();
-
-
-      const password =
-        document
-          .getElementById(
-            "password"
-          )
-          .value;
-
-
-      if (
-        !email ||
-        !password
-      ) {
-
-        alert(
-          "Enter email and password."
-        );
-
-        return;
-
-      }
-
-
-      const button =
-        document
-          .getElementById(
-            "sign"
-          );
-
-
-      button.disabled =
-        true;
-
-      button.textContent =
-        "Signing in...";
-
-
-      const {
-        error
-      } =
-        await sb.auth
-          .signInWithPassword({
-            email,
-            password
-          });
-
-
-      if (error) {
-
-        button.disabled =
-          false;
-
-        button.textContent =
-          "Sign in";
-
-        alert(
-          error.message
-        );
-
-        return;
-
-      }
-
-
-      await boot();
-
-    };
-
-}
-
-
-/* =========================================================
-   COUNT
-========================================================= */
-
-async function count(
-  table
-) {
-
-  const {
-    count,
-    error
-  } =
-    await sb
-      .from(table)
-      .select(
-        "*",
-        {
-          count:
-            "exact",
-          head:
-            true
-        }
-      );
-
-
-  if (error) {
-    throw error;
-  }
-
-
-  return count || 0;
-
-}
-
-
-/* =========================================================
-   INVENTORY
-========================================================= */
-
-async function getInventory(
-  tables = INVENTORY_TABLES
-) {
-
-  const results =
-    await Promise.all(
-
-      tables.map(
-        async (
-          [
-            table,
-            label
-          ]
-        ) => ({
-
-          table,
-
-          label,
-
-          count:
-            await count(
-              table
-            )
-
-        })
-      )
-
-    );
-
-
-  return results;
-
-}
-
-
-/* =========================================================
-   RENDER STATS
-========================================================= */
-
-function renderStats(
-  items
-) {
-
-  return `
-
-    <div class="grid">
-
-      ${
-        items
-          .map(
-            item => `
-
-              <div class="stat">
-
-                ${esc(
-                  item.label
-                )}
-
-                <b>
-                  ${esc(
-                    item.count
-                  )}
-                </b>
-
-              </div>
-
-            `
-          )
-          .join("")
-      }
-
-    </div>
-
-  `;
-
-}
-
-
-/* =========================================================
-   DASHBOARD
-========================================================= */
-
-async function dashboard() {
-
-  try {
-
-    const inventory =
-      await getInventory();
-
-
-    app.innerHTML = `
-
-      <h2>
-        Dashboard
-      </h2>
-
-      ${renderStats(
-        inventory
-      )}
-
-      <div class="panel">
-
-        <h3>
-          SentenceQuest Content System
-        </h3>
-
-        <p>
-          Dashboard shows the current database inventory only.
-        </p>
-
-        <p>
-          Use
-          <strong>
-            Import Collection
-          </strong>
-          to load JSON content.
-        </p>
-
-        <p>
-          Use
-          <strong>
-            Publish / Sync
-          </strong>
-          to publish draft content and inspect synchronization.
-        </p>
-
-      </div>
-
-    `;
-
-
-  } catch (error) {
-
-    showError(
-      error
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   INVENTORY PANEL
-========================================================= */
-
-function renderInventoryPanel(
-  title,
-  inventory
-) {
-
-  return `
-
-    <div class="panel">
-
-      <h3>
-        ${esc(title)}
-      </h3>
-
-      ${renderStats(
-        inventory
-      )}
-
-    </div>
-
-  `;
-
-}
-
-
-/* =========================================================
-   IMPORT RESULT
-========================================================= */
-
-function renderImportResult() {
-
-  if (
-    !lastImportResult
-  ) {
-
-    return "";
-
-  }
-
-
-  const fields = [
-
-    [
-      "Vocabulary",
-      "vocabulary_count"
-    ],
-
-    [
-      "Word Forms",
-      "word_form_count"
-    ],
-
-    [
-      "Word Relations",
-      "word_relation_count"
-    ],
-
-    [
-      "Grammar",
-      "grammar_count"
-    ],
-
-    [
-      "Patterns",
-      "pattern_count"
-    ],
-
-    [
-      "Lessons",
-      "lesson_count"
-    ],
-
-    [
-      "Lesson Words",
-      "lesson_word_count"
-    ],
-
-    [
-      "Grammar Intro",
-      "grammar_intro_count"
-    ],
-
-    [
-      "Valid Sentences",
-      "valid_sentence_count"
-    ],
-
-    [
-      "Collection Items",
-      "collection_item_count"
-    ],
-
-    [
-      "Gifts",
-      "gift_count"
-    ]
-
-  ];
-
-
-  return `
-
-    <div class="panel">
-
-      <h3>
-        Last Successful Import
-      </h3>
-
-      <p>
-
-        Collection:
-
-        <strong>
-          ${esc(
-            lastImportResult.collection
-          )}
-        </strong>
-
-      </p>
-
-
-      ${
-        lastImportResult.slug
-          ? `
-            <p>
-              Slug:
-              ${esc(
-                lastImportResult.slug
-              )}
-            </p>
-          `
-          : ""
-      }
-
-
-      ${
-        lastImportResult
-          .imported_version !==
-        undefined
-          ? `
-            <p>
-              Collection content version:
-              ${esc(
-                lastImportResult
-                  .imported_version
-              )}
-            </p>
-          `
-          : ""
-      }
-
-
-      <div class="grid">
-
-        ${
-          fields
-            .filter(
-              ([
-                ,
-                key
-              ]) =>
-                lastImportResult[
-                  key
-                ] !==
-                undefined
-            )
-            .map(
-              ([
-                label,
-                key
-              ]) => `
-
-                <div class="stat">
-
-                  ${esc(
-                    label
-                  )}
-
-                  <b>
-                    ${esc(
-                      lastImportResult[
-                        key
-                      ]
-                    )}
-                  </b>
-
-                </div>
-
-              `
-            )
-            .join("")
-        }
-
-      </div>
-
-
-      ${
-        lastImportResult.note
-          ? `
-            <p>
-              ${esc(
-                lastImportResult.note
-              )}
-            </p>
-          `
-          : ""
-      }
-
-    </div>
-
-  `;
-
-}
-
-
-/* =========================================================
-   IMPORT VIEW
-========================================================= */
-
 async function importView() {
+  setActiveNav("import");
 
   try {
-
-    const inventory =
-      await getInventory(
-        IMPORT_TABLES
-      );
-
-
-    lastImportInventoryBefore =
-      inventory;
-
+    const rows = await getInventory(false);
 
     app.innerHTML = `
+      <h2>Import Collection</h2>
 
-      <h2>
-        Import Collection
-      </h2>
-
+      ${lastImportResult ? `
+        <div class="panel">
+          <strong class="success">Import successful.</strong>
+          <p>Collection: ${esc(lastImportResult.collection)}</p>
+          <p>Collection version: ${esc(lastImportResult.collection_version)}</p>
+          <p>Status: ${lastImportResult.is_published ? "Published" : "Draft"}</p>
+          <p>Database version changed: <strong>NO</strong></p>
+        </div>
+      ` : ""}
 
       <div class="panel">
-
-        <h3>
-          Import JSON Collection
-        </h3>
-
-
-        <input
-          id="collectionFile"
-          type="file"
-          accept=".json,application/json"
-        >
-
-
-        <div class="toolbar">
-
-          <button
-            id="importCollection"
-          >
-            Import Collection
-          </button>
-
-
-          <button
-            id="refreshImport"
-          >
-            Refresh
-          </button>
-
-        </div>
-
-
-        <div
-          id="importStatus"
-          class="status"
-        ></div>
-
+        <h3>Current Database Inventory</h3>
+        ${inventoryHtml(rows)}
       </div>
 
-
-      ${
-        renderInventoryPanel(
-          "Current Database Inventory",
-          inventory
-        )
-      }
-
-
-      ${
-        renderImportResult()
-      }
-
-
-      ${
-        lastImportInventoryAfter
-          ? renderInventoryPanel(
-              "Database Inventory After Last Import",
-              lastImportInventoryAfter
-            )
-          : ""
-      }
-
+      <div class="panel">
+        <h3>Import JSON Collection</h3>
+        <input id="collectionFile" type="file" accept=".json,application/json">
+        <div class="toolbar">
+          <button id="importButton">Import Collection</button>
+        </div>
+        <div id="importStatus" class="status"></div>
+      </div>
     `;
 
-
-    document
-      .getElementById(
-        "importCollection"
-      )
-      .onclick =
-      importCollection;
-
-
-    document
-      .getElementById(
-        "refreshImport"
-      )
-      .onclick =
-      importView;
-
-
+    document.getElementById("importButton").onclick = importCollection;
+    lastImportResult = null;
   } catch (error) {
-
-    showError(
-      error
-    );
-
+    showError(error);
   }
-
 }
-
-
-/* =========================================================
-   IMPORT COLLECTION
-========================================================= */
 
 async function importCollection() {
+  const input = document.getElementById("collectionFile");
+  const button = document.getElementById("importButton");
+  const status = document.getElementById("importStatus");
 
-  const fileInput =
-    document.getElementById(
-      "collectionFile"
-    );
-
-
-  const button =
-    document.getElementById(
-      "importCollection"
-    );
-
-
-  if (
-    !fileInput ||
-    !fileInput.files ||
-    !fileInput.files.length
-  ) {
-
-    alert(
-      "Please select a JSON collection first."
-    );
-
+  if (!input?.files?.length) {
+    status.innerHTML = `<strong class="error">Select a JSON file first.</strong>`;
     return;
-
   }
 
-
   try {
+    button.disabled = true;
+    button.textContent = "Importing...";
+    status.textContent = "Reading collection...";
 
-    button.disabled =
-      true;
+    const text = await input.files[0].text();
+    const collection = JSON.parse(text);
 
-    button.textContent =
-      "Importing...";
-
-
-    setStatus(
-      "importStatus",
-      "Reading collection..."
-    );
-
-
-    const file =
-      fileInput.files[0];
-
-
-    const text =
-      await file.text();
-
-
-    let collection;
-
-
-    try {
-
-      collection =
-        JSON.parse(
-          text
-        );
-
-    } catch {
-
-      throw new Error(
-        "Invalid JSON file."
-      );
-
+    if (collection?.format !== "sentencequest.collection") {
+      throw new Error("Invalid collection format.");
     }
 
-
-    if (
-      collection.format !==
-      "sentencequest.collection"
-    ) {
-
-      throw new Error(
-        'Invalid collection format. Expected "sentencequest.collection".'
-      );
-
+    if (!collection?.language?.code || !collection?.language?.name) {
+      throw new Error("Missing language.code or language.name.");
     }
 
-
-    if (
-      !collection
-        .language
-        ?.code
-    ) {
-
-      throw new Error(
-        "Missing language.code."
-      );
-
+    if (!collection?.collection?.slug || !collection?.collection?.name) {
+      throw new Error("Missing collection.slug or collection.name.");
     }
 
+    status.textContent = "Sending collection to Supabase...";
 
-    if (
-      !collection
-        .collection
-        ?.slug
-    ) {
+    const { data, error } = await sb.functions.invoke("import-collection", {
+      body: collection,
+    });
 
-      throw new Error(
-        "Missing collection.slug."
-      );
+    if (error) throw new Error(error.message || "Import function failed.");
+    if (!data?.success) throw new Error(data?.error || "Collection import failed.");
 
-    }
-
-
-    setStatus(
-      "importStatus",
-      "Sending collection to Supabase..."
-    );
-
-
-    const {
-      data,
-      error
-    } =
-      await sb.functions.invoke(
-        "import-collection",
-        {
-          body:
-            collection
-        }
-      );
-
-
-    if (error) {
-
-      console.error(
-        error
-      );
-
-      throw new Error(
-        error.message ||
-        "Import function failed."
-      );
-
-    }
-
-
-    if (
-      !data ||
-      data.success !==
-        true
-    ) {
-
-      throw new Error(
-        data?.error ||
-        "Collection import failed."
-      );
-
-    }
-
-
-    lastImportResult =
-      data;
-
-
-    lastImportInventoryAfter =
-      await getInventory(
-        IMPORT_TABLES
-      );
-
-
-    setStatus(
-      "importStatus",
-
-      `
-        <strong class="success">
-          Import successful.
-        </strong>
-
-        <br><br>
-
-        Collection:
-        ${esc(
-          data.collection
-        )}
-
-        <br><br>
-
-        Database version was not changed.
-
-        <br>
-
-        Publish is required to create a database release.
-      `,
-
-      "success"
-    );
-
+    lastImportResult = data;
 
     await importView();
-
-
   } catch (error) {
-
-    console.error(
-      "IMPORT ERROR:",
-      error
-    );
-
-
-    setStatus(
-
-      "importStatus",
-
-      `
-        <strong class="error">
-          Import failed
-        </strong>
-
-        <br><br>
-
-        ${esc(
-          error.message ||
-          String(error)
-        )}
-      `,
-
-      "error"
-
-    );
-
-
+    console.error("IMPORT ERROR:", error);
+    status.innerHTML = `
+      <strong class="error">Import failed</strong>
+      <br><br>${esc(error.message || String(error))}
+    `;
   } finally {
-
     if (button) {
-
-      button.disabled =
-        false;
-
-      button.textContent =
-        "Import Collection";
-
+      button.disabled = false;
+      button.textContent = "Import Collection";
     }
-
   }
-
 }
 
-
-/* =========================================================
-   TABLE VIEW
-========================================================= */
-
-async function tableView(
-  table,
-  title,
-  columns,
-  orderColumn = null
-) {
-
+async function tableView(table, title, columns) {
   try {
+    app.innerHTML = `<h2>${esc(title)}</h2><div class="status">Loading...</div>`;
 
-    let query =
-      sb
-        .from(table)
-        .select(
-          columns.join(",")
-        )
-        .limit(100);
+    const { data, error } = await sb
+      .from(table)
+      .select(columns.join(","))
+      .limit(100);
 
-
-    if (
-      orderColumn
-    ) {
-
-      query =
-        query.order(
-          orderColumn,
-          {
-            ascending:
-              true
-          }
-        );
-
-    }
-
-
-    const {
-      data,
-      error
-    } =
-      await query;
-
-
-    if (error) {
-      throw error;
-    }
-
+    if (error) throw error;
 
     app.innerHTML = `
-
-      <h2>
-        ${esc(title)}
-      </h2>
-
-
-      <div class="toolbar">
-
-        <button
-          id="tableRefresh"
-        >
-          Refresh
-        </button>
-
-      </div>
-
-
+      <h2>${esc(title)}</h2>
+      <div class="toolbar"><button id="tableRefresh">Refresh</button></div>
       <div class="table-wrap">
-
         <table class="table">
-
-          <thead>
-
-            <tr>
-
-              ${
-                columns
-                  .map(
-                    column =>
-                      `
-                        <th>
-                          ${esc(
-                            column
-                          )}
-                        </th>
-                      `
-                  )
-                  .join("")
-              }
-
-            </tr>
-
-          </thead>
-
-
+          <thead><tr>${columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead>
           <tbody>
-
-            ${
-              (
-                data ||
-                []
-              )
-                .map(
-                  row => `
-
-                    <tr>
-
-                      ${
-                        columns
-                          .map(
-                            column =>
-                              `
-                                <td>
-                                  ${esc(
-                                    jsonText(
-                                      row[
-                                        column
-                                      ]
-                                    )
-                                  )}
-                                </td>
-                              `
-                          )
-                          .join("")
-                      }
-
-                    </tr>
-
-                  `
-                )
-                .join("")
-            }
-
+            ${(data || []).map((row) => `
+              <tr>
+                ${columns.map((column) => `<td>${esc(jsonText(row[column]))}</td>`).join("")}
+              </tr>
+            `).join("")}
           </tbody>
-
         </table>
-
       </div>
-
     `;
 
-
-    document
-      .getElementById(
-        "tableRefresh"
-      )
-      .onclick =
-      () =>
-        tableView(
-          table,
-          title,
-          columns,
-          orderColumn
-        );
-
-
+    document.getElementById("tableRefresh").onclick =
+      () => tableView(table, title, columns);
   } catch (error) {
-
-    showError(
-      error
-    );
-
+    showError(error);
   }
-
 }
-
-
-/* =========================================================
-   GRAMMAR INTRO
-========================================================= */
 
 async function grammarIntro() {
-
   try {
+    app.innerHTML = `<h2>Grammar Intro</h2><div class="status">Loading...</div>`;
 
-    const {
-      data,
-      error
-    } =
-      await sb
-        .from(
-          "lesson_grammar_intro"
-        )
-        .select(
-          `
-            id,
-            lesson_id,
-            title,
-            short_text,
-            detailed_text,
-            image_url,
-            audio_url,
-            audio_duration_seconds,
-            video_url,
-            video_duration_seconds,
-            sort_order,
-            is_active,
-            version,
-            created_at,
-            updated_at
-          `
-        )
-        .order(
-          "sort_order",
-          {
-            ascending:
-              true
-          }
-        )
-        .limit(100);
+    const { data, error } = await sb
+      .from("lesson_grammar_intro")
+      .select(`
+        id,lesson_id,title,short_text,detailed_text,
+        image_url,audio_url,video_url,
+        audio_duration_seconds,video_duration_seconds,
+        sort_order,is_active,version,created_at,updated_at
+      `)
+      .order("lesson_id", { ascending: true })
+      .order("sort_order", { ascending: true })
+      .limit(100);
 
-
-    if (error) {
-      throw error;
-    }
-
+    if (error) throw error;
 
     app.innerHTML = `
-
-      <h2>
-        Grammar Intro
-      </h2>
-
-
+      <h2>Grammar Intro</h2>
       <div class="card-grid">
-
-        ${
-          (
-            data ||
-            []
-          )
-            .map(
-              item => `
-
-                <div class="panel">
-
-                  <h3>
-                    ${esc(
-                      item.title
-                    )}
-                  </h3>
-
-
-                  ${
-                    item.short_text
-                      ? `
-                        <p>
-                          ${esc(
-                            item.short_text
-                          )}
-                        </p>
-                      `
-                      : ""
-                  }
-
-
-                  ${
-                    item.detailed_text
-                      ? `
-                        <p>
-                          ${esc(
-                            item.detailed_text
-                          )}
-                        </p>
-                      `
-                      : ""
-                  }
-
-
-                  ${
-                    item.image_url
-                      ? `
-                        <img
-                          class="preview"
-                          src="${esc(
-                            item.image_url
-                          )}"
-                        >
-                      `
-                      : ""
-                  }
-
-
-                  ${
-                    item.audio_url
-                      ? `
-                        <audio
-                          controls
-                          src="${esc(
-                            item.audio_url
-                          )}"
-                        ></audio>
-                      `
-                      : ""
-                  }
-
-
-                  ${
-                    item.video_url
-                      ? `
-                        <video
-                          controls
-                          src="${esc(
-                            item.video_url
-                          )}"
-                        ></video>
-                      `
-                      : ""
-                  }
-
-                </div>
-
-              `
-            )
-            .join("")
-        }
-
+        ${(data || []).map((item) => `
+          <div class="panel">
+            <h3>${esc(item.title)}</h3>
+            <p>${esc(item.short_text)}</p>
+            ${item.detailed_text ? `<p>${esc(item.detailed_text)}</p>` : ""}
+            ${item.image_url ? `<img class="preview" src="${esc(item.image_url)}">` : ""}
+            ${item.audio_url ? `<audio controls src="${esc(item.audio_url)}"></audio>` : ""}
+            ${item.video_url ? `<video controls src="${esc(item.video_url)}"></video>` : ""}
+          </div>
+        `).join("")}
       </div>
-
     `;
-
-
   } catch (error) {
-
-    showError(
-      error
-    );
-
+    showError(error);
   }
-
 }
-
-
-/* =========================================================
-   DATABASE VERSION
-========================================================= */
 
 async function databaseVersion() {
+  setActiveNav("database-version");
 
   try {
+    const { data, error } = await sb
+      .from("database_versions")
+      .select(`
+        id,version,major_version,minor_version,display_version,
+        release_name,checksum,notes,created_at,is_current,
+        published_at,published_by
+      `)
+      .order("version", { ascending: false })
+      .limit(50);
 
-    const {
-      data,
-      error
-    } =
-      await sb
-        .from(
-          "database_versions"
-        )
-        .select(
-          `
-            id,
-            version,
-            major_version,
-            minor_version,
-            release_name,
-            checksum,
-            notes,
-            created_at,
-            is_current,
-            published_at,
-            published_by
-          `
-        )
-        .order(
-          "version",
-          {
-            ascending:
-              false
-          }
-        )
-        .limit(50);
-
-
-    if (error) {
-      throw error;
-    }
-
+    if (error) throw error;
 
     app.innerHTML = `
-
-      <h2>
-        Database Version
-      </h2>
-
-
+      <h2>Database Version</h2>
       <div class="panel">
-
         <div class="table-wrap">
-
           <table class="table">
-
             <thead>
-
               <tr>
-
-                <th>
-                  Version
-                </th>
-
-                <th>
-                  Numeric
-                </th>
-
-                <th>
-                  Release
-                </th>
-
-                <th>
-                  Current
-                </th>
-
-                <th>
-                  Notes
-                </th>
-
-                <th>
-                  Date
-                </th>
-
+                <th>Version</th><th>Release</th><th>Current</th>
+                <th>Notes</th><th>Date</th>
               </tr>
-
             </thead>
-
-
             <tbody>
-
-              ${
-                (
-                  data ||
-                  []
-                )
-                  .map(
-                    row => `
-
-                      <tr>
-
-                        <td>
-                          ${esc(
-                            versionString(
-                              row.major_version,
-                              row.minor_version
-                            )
-                          )}
-                        </td>
-
-                        <td>
-                          ${esc(
-                            row.version
-                          )}
-                        </td>
-
-                        <td>
-                          ${esc(
-                            row.release_name
-                          )}
-                        </td>
-
-                        <td>
-                          ${
-                            row.is_current
-                              ? "YES"
-                              : "NO"
-                          }
-                        </td>
-
-                        <td>
-                          ${esc(
-                            row.notes
-                          )}
-                        </td>
-
-                        <td>
-                          ${esc(
-                            row.published_at ||
-                            row.created_at
-                          )}
-                        </td>
-
-                      </tr>
-
-                    `
-                  )
-                  .join("")
-              }
-
+              ${(data || []).map((row) => `
+                <tr>
+                  <td>${esc(row.display_version || versionString(row.major_version, row.minor_version))}</td>
+                  <td>${esc(row.release_name)}</td>
+                  <td>${row.is_current ? "YES" : "NO"}</td>
+                  <td>${esc(row.notes)}</td>
+                  <td>${esc(row.created_at)}</td>
+                </tr>
+              `).join("")}
             </tbody>
-
           </table>
-
         </div>
-
       </div>
-
     `;
-
-
   } catch (error) {
-
-    showError(
-      error
-    );
-
+    showError(error);
   }
-
 }
-
-
-/* =========================================================
-   APP VERSION
-========================================================= */
 
 async function appVersion() {
+  setActiveNav("version");
 
   try {
-
-    const {
-      data,
-      error
-    } =
-      await sb
-        .from(
-          "app_release"
-        )
-        .select(
-          `
-            id,
-            major_version,
-            minor_version,
-            app_version,
-            minimum_supported_version,
-            release_notes,
-            updated_at
-          `
-        )
-        .eq(
-          "id",
-          true
-        )
-        .maybeSingle();
-
-
-    if (error) {
-      throw error;
-    }
-
-
-    if (!data) {
-
-      app.innerHTML = `
-
-        <h2>
-          App Version
-        </h2>
-
-        <div class="panel">
-
-          <p class="error">
-            App release record not found.
-          </p>
-
-        </div>
-
-      `;
-
-      return;
-
-    }
-
-
-    app.innerHTML = `
-
-      <h2>
-        App Version
-      </h2>
-
-
-      <div class="panel">
-
-        <h3>
-          Current Version
-        </h3>
-
-
-        <div class="version">
-
-          ${esc(
-            data.app_version
-          )}
-
-        </div>
-
-
-        <p>
-
-          Major version:
-
-          <strong>
-            ${esc(
-              data.major_version
-            )}
-          </strong>
-
-        </p>
-
-
-        <p>
-
-          Minor version:
-
-          <strong>
-            ${esc(
-              data.minor_version
-            )}
-          </strong>
-
-        </p>
-
-
-        <p>
-
-          Minimum supported version:
-
-          ${esc(
-            data.minimum_supported_version
-          )}
-
-        </p>
-
-
-        <p>
-
-          ${esc(
-            data.release_notes
-          )}
-
-        </p>
-
-      </div>
-
-
-      <div class="panel">
-
-        <h3>
-          Version Policy
-        </h3>
-
-
-        <p>
-          Content/database update:
-          1.07 → 1.08
-        </p>
-
-
-        <p>
-          Major structural update:
-          1.99 → 2.00
-        </p>
-
-
-        <p>
-          Import does not change database version.
-        </p>
-
-
-        <p>
-          Publish creates the next database release.
-        </p>
-
-
-        <p>
-          App version is independent from database/content version.
-        </p>
-
-      </div>
-
-    `;
-
-
-  } catch (error) {
-
-    showError(
-      error
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   CURRENT DATABASE RELEASE
-========================================================= */
-
-async function getCurrentDatabaseRelease() {
-
-  const {
-    data,
-    error
-  } =
-    await sb
-      .from(
-        "database_release"
-      )
-      .select(
-        `
-          id,
-          major_version,
-          minor_version,
-          database_version,
-          release_name,
-          notes,
-          checksum,
-          published_at,
-          published_by
-        `
-      )
-      .eq(
-        "id",
-        true
-      )
+    const { data, error } = await sb
+      .from("app_release")
+      .select(`
+        id,major_version,minor_version,app_version,
+        minimum_supported_version,release_notes,updated_at
+      `)
+      .eq("id", true)
       .maybeSingle();
 
+    if (error) throw error;
 
-  if (error) {
-    throw error;
-  }
-
-
-  return data;
-
-}
-
-
-/* =========================================================
-   PUBLISH / SYNC VIEW
-========================================================= */
-
-async function publishView() {
-
-  try {
-
-    const [
-
-      {
-        data:
-          collections,
-        error:
-          collectionError
-      },
-
-      release
-
-    ] =
-      await Promise.all([
-
-        sb
-          .from(
-            "collections"
-          )
-          .select(
-            `
-              id,
-              name,
-              slug,
-              version,
-              is_published,
-              updated_at
-            `
-          )
-          .order(
-            "updated_at",
-            {
-              ascending:
-                false
-            }
-          ),
-
-        getCurrentDatabaseRelease()
-
-      ]);
-
-
-    if (
-      collectionError
-    ) {
-
-      throw collectionError;
-
+    if (!data) {
+      app.innerHTML = `
+        <h2>App Version</h2>
+        <div class="panel"><p class="error">App release record not found.</p></div>
+      `;
+      return;
     }
-
-
-    const currentVersion =
-      release
-        ? versionString(
-            release.major_version,
-            release.minor_version
-          )
-        : "—";
-
 
     app.innerHTML = `
-
-      <h2>
-        Publish / Sync
-      </h2>
-
+      <h2>App Version</h2>
+      <div class="panel">
+        <h3>Current version</h3>
+        <div class="version">${esc(data.app_version)}</div>
+        <p>Major version: <strong>${esc(data.major_version)}</strong></p>
+        <p>Minor version: <strong>${esc(data.minor_version)}</strong></p>
+        <p>Minimum supported version: ${esc(data.minimum_supported_version)}</p>
+        <p>${esc(data.release_notes)}</p>
+      </div>
 
       <div class="panel">
-
-        <h3>
-          Current Database Release
-        </h3>
-
-
-        <p>
-
-          Database Version:
-
-          <strong>
-            ${esc(
-              currentVersion
-            )}
-          </strong>
-
-        </p>
-
-
-        ${
-          release?.release_name
-            ? `
-              <p>
-                Release:
-                ${esc(
-                  release.release_name
-                )}
-              </p>
-            `
-            : ""
-        }
-
-
-        <div class="toolbar">
-
-          <button
-            id="syncDatabase"
-          >
-            Sync Check
-          </button>
-
-
-          <button
-            id="refreshPublish"
-          >
-            Refresh
-          </button>
-
-        </div>
-
-
-        <div
-          id="syncStatus"
-          class="status"
-        ></div>
-
+        <h3>Version policy</h3>
+        <p>Content/database update: 1.07 → 1.08</p>
+        <p>Major structural update: 1.99 → 2.00</p>
+        <p>App version and database version are independent.</p>
+        <p>Major app version changes are manual.</p>
       </div>
-
-
-      <div class="panel">
-
-        <h3>
-          Collections
-        </h3>
-
-
-        <p>
-
-          Only Draft collections can be published.
-
-          Importing content does not create a new database version.
-
-        </p>
-
-      </div>
-
-
-      <div class="card-grid">
-
-        ${
-          (
-            collections ||
-            []
-          )
-            .map(
-              collection => `
-
-                <div class="panel">
-
-                  <h3>
-                    ${esc(
-                      collection.name
-                    )}
-                  </h3>
-
-
-                  <p>
-
-                    Slug:
-
-                    ${esc(
-                      collection.slug
-                    )}
-
-                  </p>
-
-
-                  <p>
-
-                    Collection version:
-
-                    ${esc(
-                      collection.version
-                    )}
-
-                  </p>
-
-
-                  <p>
-
-                    Status:
-
-                    ${
-                      collection.is_published
-                        ? "Published"
-                        : "Draft"
-                    }
-
-                  </p>
-
-
-                  ${
-                    collection.is_published
-
-                      ? `
-
-                        <span class="success">
-                          Published
-                        </span>
-
-                      `
-
-                      : `
-
-                        <button
-                          data-publish-id="${esc(
-                            collection.id
-                          )}"
-                        >
-                          Publish
-                        </button>
-
-                      `
-                  }
-
-                </div>
-
-              `
-            )
-            .join("")
-        }
-
-      </div>
-
-
-      <div
-        id="publishStatus"
-        class="status"
-      ></div>
-
     `;
-
-
-    document
-      .querySelectorAll(
-        "[data-publish-id]"
-      )
-      .forEach(
-        button => {
-
-          button.onclick =
-            () =>
-              publishCollection(
-                button.dataset
-                  .publishId
-              );
-
-        }
-      );
-
-
-    document
-      .getElementById(
-        "refreshPublish"
-      )
-      .onclick =
-      publishView;
-
-
-    document
-      .getElementById(
-        "syncDatabase"
-      )
-      .onclick =
-      syncDatabase;
-
-
   } catch (error) {
-
-    showError(
-      error
-    );
-
+    showError(error);
   }
-
 }
 
+async function getDatabaseRelease() {
+  const { data, error } = await sb
+    .from("database_release")
+    .select(`
+      id,major_version,minor_version,database_version,
+      release_name,notes,checksum,published_at,published_by
+    `)
+    .eq("id", true)
+    .maybeSingle();
 
-/* =========================================================
-   PUBLISH COLLECTION
-========================================================= */
+  if (error) throw error;
+  return data;
+}
 
-async function publishCollection(
-  collectionId
-) {
-
-  const status =
-    document.getElementById(
-      "publishStatus"
-    );
-
-
-  if (
-    !confirm(
-      "Publish this collection and create the next database release?"
-    )
-  ) {
-
-    return;
-
-  }
-
+async function publishView() {
+  setActiveNav("publish");
 
   try {
+    const [{ data: collections, error: collectionError }, release] =
+      await Promise.all([
+        sb.from("collections").select(`
+          id,name,slug,version,is_published,updated_at
+        `).order("updated_at", { ascending: false }),
+        getDatabaseRelease(),
+      ]);
 
-    status.textContent =
-      "Publishing...";
+    if (collectionError) throw collectionError;
 
+    const currentVersion = release
+      ? (release.database_version ||
+        versionString(release.major_version, release.minor_version))
+      : "—";
 
-    const {
-      data,
-      error
-    } =
-      await sb.functions.invoke(
-        "publish-collection",
-        {
-          body: {
-            collection_id:
-              collectionId
-          }
-        }
-      );
+    app.innerHTML = `
+      <h2>Publish / Sync</h2>
 
+      <div class="panel">
+        <h3>Current Database</h3>
+        <p>Database Version: <strong>${esc(currentVersion)}</strong></p>
+        <p>Release: ${esc(release?.release_name || "Initial Database")}</p>
+        <p class="muted">Import does not change this version. Publish creates the next version.</p>
+      </div>
 
-    if (error) {
+      <div class="panel">
+        <div class="toolbar">
+          <button id="refreshPublish">Refresh</button>
+          <button id="syncDatabase">Sync Check</button>
+        </div>
+        <div id="syncStatus" class="status"></div>
+      </div>
 
-      throw new Error(
-        error.message ||
-        "Publish function failed."
-      );
+      <div class="panel">
+        <h3>Collections</h3>
+        ${(collections || []).length ? collections.map((collection) => `
+          <div class="panel">
+            <h3>${esc(collection.name)}</h3>
+            <p>Slug: ${esc(collection.slug)}</p>
+            <p>Collection version: ${esc(collection.version)}</p>
+            <p>
+              Status:
+              <strong>${collection.is_published ? "Published" : "Draft"}</strong>
+            </p>
+            <button
+              data-publish-id="${esc(collection.id)}"
+              data-published="${collection.is_published ? "true" : "false"}"
+            >
+              ${collection.is_published ? "Republish" : "Publish"}
+            </button>
+          </div>
+        `).join("") : `<p class="muted">No collections imported yet.</p>`}
+      </div>
 
-    }
-
-
-    if (
-      !data ||
-      data.success !==
-        true
-    ) {
-
-      throw new Error(
-        data?.error ||
-        "Publish failed."
-      );
-
-    }
-
-
-    status.innerHTML = `
-
-      <strong class="success">
-        Published successfully.
-      </strong>
-
-      <br><br>
-
-      Database version:
-      ${esc(
-        data.database_version
-      )}
-
-      <br>
-
-      Published lessons:
-      ${esc(
-        data.published_lessons ??
-        0
-      )}
-
-      <br>
-
-      Sync changes:
-      ${esc(
-        data.sync_changes ??
-        0
-      )}
-
+      <div id="publishStatus" class="status"></div>
     `;
 
+    document.querySelectorAll("[data-publish-id]").forEach((button) => {
+      button.onclick = () => publishCollection(button.dataset.publishId);
+    });
+
+    document.getElementById("refreshPublish").onclick = publishView;
+    document.getElementById("syncDatabase").onclick = syncDatabase;
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function publishCollection(collectionId) {
+  const status = document.getElementById("publishStatus");
+
+  if (!confirm("Publish this collection? This will create the next database version.")) {
+    return;
+  }
+
+  try {
+    status.textContent = "Publishing...";
+
+    const { data, error } = await sb.functions.invoke("publish-collection", {
+      body: { collection_id: collectionId },
+    });
+
+    if (error) throw new Error(error.message || "Publish function failed.");
+    if (!data?.success) throw new Error(data?.error || "Publish failed.");
+
+    status.innerHTML = `
+      <strong class="success">Published successfully.</strong>
+      <br><br>
+      Database version: ${esc(data.database_version)}
+      <br>
+      Collection version: ${esc(data.collection_version)}
+      <br>
+      Published lessons: ${esc(data.published_lessons)}
+      <br>
+      Sync changes: ${esc(data.sync_changes)}
+    `;
 
     await publishView();
-
-
   } catch (error) {
-
-    console.error(
-      "PUBLISH ERROR:",
-      error
-    );
-
-
-    if (status) {
-
-      status.innerHTML = `
-
-        <strong class="error">
-          Publish failed
-        </strong>
-
-        <br><br>
-
-        ${esc(
-          error.message ||
-          String(error)
-        )}
-
-      `;
-
-    }
-
+    console.error("PUBLISH ERROR:", error);
+    status.innerHTML = `
+      <strong class="error">Publish failed</strong>
+      <br><br>${esc(error.message || String(error))}
+    `;
   }
-
 }
-
-
-/* =========================================================
-   SYNC CHECK
-========================================================= */
 
 async function syncDatabase() {
-
-  const status =
-    document.getElementById(
-      "syncStatus"
-    );
-
+  const status = document.getElementById("syncStatus");
 
   try {
+    status.textContent = "Checking synchronization system...";
 
-    status.textContent =
-      "Checking synchronization...";
+    // 0.00 is intentionally used here as a diagnostic baseline.
+    // This checks that the endpoint can read the current release and return changes.
+    const { data, error } = await sb.functions.invoke("sync-database", {
+      body: { database_version: "0.00" },
+    });
 
-
-    const release =
-      await getCurrentDatabaseRelease();
-
-
-    if (!release) {
-
-      throw new Error(
-        "Database release record not found."
-      );
-
-    }
-
-
-    const version =
-      versionString(
-        release.major_version,
-        release.minor_version
-      );
-
-
-    const {
-      data,
-      error
-    } =
-      await sb.functions.invoke(
-        "sync-database",
-        {
-          body: {
-            database_version:
-              version
-          }
-        }
-      );
-
-
-    if (error) {
-      throw error;
-    }
-
-
-    if (
-      !data ||
-      data.success !==
-        true
-    ) {
-
-      throw new Error(
-        data?.error ||
-        "Sync check failed."
-      );
-
-    }
-
-
-    const changes =
-      data.changes ||
-      [];
-
+    if (error) throw new Error(error.message || "Sync check failed.");
+    if (!data?.success) throw new Error(data?.error || "Sync check failed.");
 
     status.innerHTML = `
-
-      <strong class="success">
-        Sync check completed.
-      </strong>
-
+      <strong class="success">Sync system is working.</strong>
       <br><br>
-
-      Current database version:
-
-      ${esc(
-        data.database_version ||
-        version
-      )}
-
+      Current database version: ${esc(data.database_version)}
       <br>
-
-      Changes returned for this client version:
-
-      ${esc(
-        changes.length
-      )}
-
+      Changes returned from 0.00: ${esc(data.changes?.length || 0)}
+      <br>
+      No database data was changed by this check.
     `;
-
-
   } catch (error) {
-
-    console.error(
-      "SYNC ERROR:",
-      error
-    );
-
-
+    console.error("SYNC CHECK ERROR:", error);
     status.innerHTML = `
-
-      <strong class="error">
-        Sync check failed
-      </strong>
-
-      <br><br>
-
-      ${esc(
-        error.message ||
-        String(error)
-      )}
-
+      <strong class="error">Sync check failed</strong>
+      <br><br>${esc(error.message || String(error))}
     `;
-
   }
-
 }
 
-
-/* =========================================================
-   ERROR
-========================================================= */
-
-function showError(
-  error
-) {
-
-  console.error(
-    error
-  );
-
+function showError(error) {
+  console.error(error);
 
   app.innerHTML = `
-
     <div class="panel">
-
-      <h2>
-        Error
-      </h2>
-
-
-      <p class="error">
-
-        ${esc(
-          error?.message ||
-          String(error)
-        )}
-
-      </p>
-
-
-      <button
-        id="errorRetry"
-      >
-        Retry
-      </button>
-
+      <h2>Error</h2>
+      <p class="error">${esc(error?.message || String(error))}</p>
+      <button id="errorRetry">Retry</button>
     </div>
-
   `;
 
-
-  const retry =
-    document.getElementById(
-      "errorRetry"
-    );
-
-
-  if (retry) {
-
-    retry.onclick =
-      dashboard;
-
-  }
-
+  document.getElementById("errorRetry").onclick = dashboard;
 }
 
-
-/* =========================================================
-   NAVIGATION
-========================================================= */
-
-function view(
-  value
-) {
-
+function view(value) {
   switch (value) {
-
     case "dashboard":
-
       dashboard();
-
       break;
-
-
     case "vocabulary":
-
-      tableView(
-        "vocabulary",
-        "Vocabulary",
-        [
-          "word",
-          "part_of_speech",
-          "translation",
-          "level",
-          "is_active"
-        ]
-      );
-
+      setActiveNav(value);
+      tableView("vocabulary", "Vocabulary", [
+        "word", "part_of_speech", "translation", "level", "is_active"
+      ]);
       break;
-
-
     case "grammar":
-
-      tableView(
-        "grammar",
-        "Grammar",
-        [
-          "code",
-          "name",
-          "level",
-          "description",
-          "is_active"
-        ]
-      );
-
+      setActiveNav(value);
+      tableView("grammar", "Grammar", [
+        "code", "name", "level", "description", "is_active"
+      ]);
       break;
-
-
     case "grammar-intro":
-
+      setActiveNav(value);
       grammarIntro();
-
       break;
-
-
     case "lessons":
-
-      tableView(
-        "lessons",
-        "Lessons",
-        [
-          "title",
-          "slug",
-          "level",
-          "order_index",
-          "is_published",
-          "base_xp",
-          "version"
-        ],
-        "order_index"
-      );
-
+      setActiveNav(value);
+      tableView("lessons", "Lessons", [
+        "title", "slug", "level", "order_index", "is_published", "base_xp"
+      ]);
       break;
-
-
     case "collections":
-
-      tableView(
-        "collections",
-        "Collections",
-        [
-          "name",
-          "slug",
-          "version",
-          "is_published",
-          "updated_at"
-        ],
-        "updated_at"
-      );
-
+      setActiveNav(value);
+      tableView("collections", "Collections", [
+        "name", "slug", "version", "is_published", "updated_at"
+      ]);
       break;
-
-
     case "import":
-
       importView();
-
       break;
-
-
     case "publish":
-
       publishView();
-
       break;
-
-
     case "database-version":
-
       databaseVersion();
-
       break;
-
-
     case "version":
-
       appVersion();
-
       break;
-
-
     default:
-
       dashboard();
-
   }
-
 }
 
+document.querySelectorAll("nav button").forEach((button) => {
+  button.onclick = () => view(button.dataset.view);
+});
 
-/* =========================================================
-   NAV BUTTONS
-========================================================= */
-
-document
-  .querySelectorAll(
-    "nav button"
-  )
-  .forEach(
-    button => {
-
-      button.onclick =
-        () => {
-
-          view(
-            button.dataset
-              .view
-          );
-
-        };
-
-    }
-  );
-
-
-/* =========================================================
-   LOGOUT
-========================================================= */
-
-const logout =
-  document.getElementById(
-    "logout"
-  );
-
-
+const logout = document.getElementById("logout");
 if (logout) {
-
-  logout.onclick =
-    async () => {
-
-      await sb.auth.signOut();
-
-      boot();
-
-    };
-
+  logout.onclick = async () => {
+    await sb.auth.signOut();
+    await boot();
+  };
 }
-
-
-/* =========================================================
-   START
-========================================================= */
 
 boot();

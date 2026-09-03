@@ -4,13 +4,11 @@ const SUPABASE_URL =
 const SUPABASE_ANON_KEY =
   "sb_publishable_mGaig4vsOn0UUYOXLLl-_g_MEKvIW8r";
 
-
 const sb =
   window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_ANON_KEY
   );
-
 
 const app =
   document.getElementById("app");
@@ -18,10 +16,10 @@ const app =
 const conn =
   document.getElementById("connection");
 
-
 function esc(value) {
-
-  return String(value ?? "").replace(
+  return String(
+    value ?? ""
+  ).replace(
     /[&<>"']/g,
     (c) =>
       ({
@@ -32,12 +30,9 @@ function esc(value) {
         "'": "&#039;"
       })[c]
   );
-
 }
 
-
 function jsonText(value) {
-
   if (
     value === null ||
     value === undefined
@@ -46,7 +41,8 @@ function jsonText(value) {
   }
 
   if (
-    typeof value === "object"
+    typeof value ===
+    "object"
   ) {
     return JSON.stringify(
       value,
@@ -57,7 +53,6 @@ function jsonText(value) {
 
   return String(value);
 }
-
 
 /* =========================================================
    BOOT
@@ -75,22 +70,17 @@ async function boot() {
     } =
       await sb.auth.getSession();
 
-
     if (error) {
-
-      login(error.message);
-
+      login(
+        error.message
+      );
       return;
     }
-
 
     if (!session) {
-
       login();
-
       return;
     }
-
 
     const {
       data: profile,
@@ -107,20 +97,15 @@ async function boot() {
         )
         .maybeSingle();
 
-
     if (profileError) {
-
       login(
         "Profile error: " +
         profileError.message
       );
-
       return;
     }
 
-
     if (!profile) {
-
       await sb.auth.signOut();
 
       login(
@@ -130,11 +115,10 @@ async function boot() {
       return;
     }
 
-
     if (
-      profile.role !== "admin"
+      profile.role !==
+      "admin"
     ) {
-
       await sb.auth.signOut();
 
       login(
@@ -145,7 +129,6 @@ async function boot() {
       return;
     }
 
-
     conn.textContent =
       "Connected as " +
       (
@@ -153,9 +136,7 @@ async function boot() {
         "Admin"
       );
 
-
     dashboard();
-
 
   } catch (error) {
 
@@ -167,9 +148,7 @@ async function boot() {
     );
 
   }
-
 }
-
 
 /* =========================================================
    LOGIN
@@ -179,13 +158,8 @@ function login(
   message = ""
 ) {
 
-  if (conn) {
-
-    conn.textContent =
-      "Not connected";
-
-  }
-
+  conn.textContent =
+    "Not connected";
 
   app.innerHTML = `
 
@@ -227,49 +201,49 @@ function login(
 
   `;
 
-
   document
-    .getElementById("sign")
+    .getElementById(
+      "sign"
+    )
     .onclick =
     async () => {
 
       const email =
         document
-          .getElementById("email")
+          .getElementById(
+            "email"
+          )
           .value
           .trim();
 
-
       const password =
         document
-          .getElementById("password")
+          .getElementById(
+            "password"
+          )
           .value;
-
 
       if (
         !email ||
         !password
       ) {
-
         alert(
           "Enter email and password."
         );
-
         return;
       }
 
-
       const button =
         document
-          .getElementById("sign");
-
+          .getElementById(
+            "sign"
+          );
 
       button.disabled =
         true;
 
       button.textContent =
         "Signing in...";
-
 
       const {
         error
@@ -279,7 +253,6 @@ function login(
             email,
             password
           });
-
 
       if (error) {
 
@@ -296,13 +269,10 @@ function login(
         return;
       }
 
-
       await boot();
 
     };
-
 }
-
 
 /* =========================================================
    COUNT
@@ -321,23 +291,19 @@ async function count(
       .select(
         "*",
         {
-          count: "exact",
-          head: true
+          count:
+            "exact",
+          head:
+            true
         }
       );
 
-
   if (error) {
-
     throw error;
-
   }
 
-
   return count || 0;
-
 }
-
 
 /* =========================================================
    DASHBOARD
@@ -347,37 +313,80 @@ async function dashboard() {
 
   try {
 
-    const [
-      vocabulary,
-      grammar,
-      lessons,
-      collections,
-      patterns
-    ] =
-      await Promise.all([
+    const tables = [
+      [
+        "languages",
+        "Languages"
+      ],
+      [
+        "vocabulary",
+        "Vocabulary"
+      ],
+      [
+        "grammar",
+        "Grammar"
+      ],
+      [
+        "sentence_patterns",
+        "Patterns"
+      ],
+      [
+        "lessons",
+        "Lessons"
+      ],
+      [
+        "lesson_words",
+        "Lesson Words"
+      ],
+      [
+        "lesson_grammar_intro",
+        "Grammar Intro"
+      ],
+      [
+        "collections",
+        "Collections"
+      ],
+      [
+        "collection_items",
+        "Collection Items"
+      ],
+      [
+        "word_forms",
+        "Word Forms"
+      ],
+      [
+        "word_relations",
+        "Word Relations"
+      ],
+      [
+        "valid_sentences",
+        "Valid Sentences"
+      ],
+      [
+        "gifts",
+        "Gifts"
+      ],
+      [
+        "database_versions",
+        "DB Versions"
+      ],
+      [
+        "sync_changes",
+        "Sync Changes"
+      ]
+    ];
 
-        count(
-          "vocabulary"
-        ),
-
-        count(
-          "grammar"
-        ),
-
-        count(
-          "lessons"
-        ),
-
-        count(
-          "collections"
-        ),
-
-        count(
-          "sentence_patterns"
+    const counts =
+      await Promise.all(
+        tables.map(
+          async ([table]) => [
+            table,
+            await count(
+              table
+            )
+          ]
         )
-
-      ]);
-
+      );
 
     app.innerHTML = `
 
@@ -385,41 +394,154 @@ async function dashboard() {
         Dashboard
       </h2>
 
-
       <div class="grid">
 
-        <div class="stat">
-          Vocabulary
-          <b>${vocabulary}</b>
-        </div>
+        ${
+          counts
+            .map(
+              ([table, value]) => {
 
-        <div class="stat">
-          Grammar
-          <b>${grammar}</b>
-        </div>
+                const label =
+                  tables.find(
+                    ([name]) =>
+                      name === table
+                  )?.[1] ||
+                  table;
 
-        <div class="stat">
-          Patterns
-          <b>${patterns}</b>
-        </div>
+                return `
+                  <div class="stat">
 
-        <div class="stat">
-          Lessons
-          <b>${lessons}</b>
-        </div>
+                    ${esc(label)}
 
-        <div class="stat">
-          Collections
-          <b>${collections}</b>
-        </div>
+                    <b>
+                      ${esc(value)}
+                    </b>
+
+                  </div>
+                `;
+              }
+            )
+            .join("")
+        }
 
       </div>
-
 
       <div class="panel">
 
         <h3>
-          Import Collection
+          SentenceQuest Content System
+        </h3>
+
+        <p>
+          Dashboard shows the current database inventory.
+        </p>
+
+        <p>
+          Use Import to add content.
+          Use Publish / Sync to publish content and manage synchronization.
+        </p>
+
+      </div>
+
+    `;
+
+  } catch (error) {
+
+    showError(
+      error
+    );
+
+  }
+}
+
+/* =========================================================
+   IMPORT
+========================================================= */
+
+let lastImportResult =
+  null;
+
+async function importView() {
+
+  try {
+
+    const tables = [
+      [
+        "languages",
+        "Languages"
+      ],
+      [
+        "vocabulary",
+        "Vocabulary"
+      ],
+      [
+        "grammar",
+        "Grammar"
+      ],
+      [
+        "sentence_patterns",
+        "Patterns"
+      ],
+      [
+        "lessons",
+        "Lessons"
+      ],
+      [
+        "lesson_words",
+        "Lesson Words"
+      ],
+      [
+        "lesson_grammar_intro",
+        "Grammar Intro"
+      ],
+      [
+        "collections",
+        "Collections"
+      ],
+      [
+        "collection_items",
+        "Collection Items"
+      ],
+      [
+        "word_forms",
+        "Word Forms"
+      ],
+      [
+        "word_relations",
+        "Word Relations"
+      ],
+      [
+        "valid_sentences",
+        "Valid Sentences"
+      ],
+      [
+        "gifts",
+        "Gifts"
+      ]
+    ];
+
+    const counts =
+      await Promise.all(
+        tables.map(
+          async ([table]) => [
+            table,
+            await count(
+              table
+            )
+          ]
+        )
+      );
+
+    app.innerHTML = `
+
+      <h2>
+        Import Collection
+      </h2>
+
+      <div class="panel">
+
+        <h3>
+          Import JSON Collection
         </h3>
 
         <input
@@ -427,7 +549,6 @@ async function dashboard() {
           type="file"
           accept=".json,application/json"
         >
-
 
         <div class="toolbar">
 
@@ -438,13 +559,12 @@ async function dashboard() {
           </button>
 
           <button
-            id="refreshDashboard"
+            id="refreshImport"
           >
             Refresh
           </button>
 
         </div>
-
 
         <div
           id="importStatus"
@@ -453,8 +573,110 @@ async function dashboard() {
 
       </div>
 
-    `;
+      <div class="panel">
 
+        <h3>
+          Current Database Inventory
+        </h3>
+
+        <div class="grid">
+
+          ${
+            counts
+              .map(
+                ([table, value]) => {
+
+                  const label =
+                    tables.find(
+                      ([name]) =>
+                        name ===
+                        table
+                    )?.[1] ||
+                    table;
+
+                  return `
+                    <div class="stat">
+                      ${esc(label)}
+                      <b>
+                        ${esc(value)}
+                      </b>
+                    </div>
+                  `;
+                }
+              )
+              .join("")
+          }
+
+        </div>
+
+      </div>
+
+      ${
+        lastImportResult
+          ? `
+
+            <div class="panel">
+
+              <h3>
+                Last Successful Import
+              </h3>
+
+              <p>
+                Collection:
+                <strong>
+                  ${esc(
+                    lastImportResult.collection
+                  )}
+                </strong>
+              </p>
+
+              <div class="grid">
+
+                <div class="stat">
+                  Vocabulary
+                  <b>
+                    ${esc(
+                      lastImportResult.vocabulary_count
+                    )}
+                  </b>
+                </div>
+
+                <div class="stat">
+                  Grammar
+                  <b>
+                    ${esc(
+                      lastImportResult.grammar_count
+                    )}
+                  </b>
+                </div>
+
+                <div class="stat">
+                  Patterns
+                  <b>
+                    ${esc(
+                      lastImportResult.pattern_count
+                    )}
+                  </b>
+                </div>
+
+                <div class="stat">
+                  Lessons
+                  <b>
+                    ${esc(
+                      lastImportResult.lesson_count
+                    )}
+                  </b>
+                </div>
+
+              </div>
+
+            </div>
+
+          `
+          : ""
+      }
+
+    `;
 
     document
       .getElementById(
@@ -463,27 +685,21 @@ async function dashboard() {
       .onclick =
       importCollection;
 
-
     document
       .getElementById(
-        "refreshDashboard"
+        "refreshImport"
       )
       .onclick =
-      dashboard;
-
+      importView;
 
   } catch (error) {
 
-    showError(error);
+    showError(
+      error
+    );
 
   }
-
 }
-
-
-/* =========================================================
-   IMPORT
-========================================================= */
 
 async function importCollection() {
 
@@ -492,32 +708,27 @@ async function importCollection() {
       "collectionFile"
     );
 
-
   const status =
     document.getElementById(
       "importStatus"
     );
-
 
   const button =
     document.getElementById(
       "importCollection"
     );
 
-
   if (
     !fileInput ||
     !fileInput.files ||
     !fileInput.files.length
   ) {
-
     alert(
       "Please select a JSON collection first."
     );
 
     return;
   }
-
 
   try {
 
@@ -527,21 +738,16 @@ async function importCollection() {
     button.textContent =
       "Importing...";
 
-
     status.textContent =
       "Reading collection...";
-
 
     const file =
       fileInput.files[0];
 
-
     const text =
       await file.text();
 
-
     let collection;
-
 
     try {
 
@@ -556,44 +762,37 @@ async function importCollection() {
 
     }
 
-
     if (
       collection.format !==
       "sentencequest.collection"
     ) {
-
       throw new Error(
         'Invalid collection format. Expected "sentencequest.collection".'
       );
-
     }
 
-
     if (
-      !collection.language?.code
+      !collection
+        .language
+        ?.code
     ) {
-
       throw new Error(
         "Missing language.code."
       );
-
     }
 
-
     if (
-      !collection.collection?.slug
+      !collection
+        .collection
+        ?.slug
     ) {
-
       throw new Error(
         "Missing collection.slug."
       );
-
     }
-
 
     status.textContent =
       "Sending collection to Supabase...";
-
 
     const {
       data,
@@ -606,7 +805,6 @@ async function importCollection() {
             collection
         }
       );
-
 
     if (error) {
 
@@ -621,19 +819,19 @@ async function importCollection() {
 
     }
 
-
     if (
       !data ||
-      data.success !== true
+      data.success !==
+        true
     ) {
-
       throw new Error(
         data?.error ||
         "Collection import failed."
       );
-
     }
 
+    lastImportResult =
+      data;
 
     status.innerHTML = `
 
@@ -644,38 +842,41 @@ async function importCollection() {
       <br><br>
 
       Collection:
-      ${esc(data.collection)}
+      ${esc(
+        data.collection
+      )}
 
       <br>
 
       Vocabulary:
-      ${esc(data.vocabulary_count)}
+      ${esc(
+        data.vocabulary_count
+      )}
 
       <br>
 
       Grammar:
-      ${esc(data.grammar_count)}
+      ${esc(
+        data.grammar_count
+      )}
 
       <br>
 
       Patterns:
-      ${esc(data.pattern_count)}
+      ${esc(
+        data.pattern_count
+      )}
 
       <br>
 
       Lessons:
-      ${esc(data.lesson_count)}
+      ${esc(
+        data.lesson_count
+      )}
 
     `;
 
-
-    alert(
-      "Collection imported successfully."
-    );
-
-
-    dashboard();
-
+    await importView();
 
   } catch (error) {
 
@@ -683,7 +884,6 @@ async function importCollection() {
       "IMPORT ERROR:",
       error
     );
-
 
     status.innerHTML = `
 
@@ -700,16 +900,6 @@ async function importCollection() {
 
     `;
 
-
-    alert(
-      "Import failed: " +
-      (
-        error.message ||
-        String(error)
-      )
-    );
-
-
   } finally {
 
     if (button) {
@@ -723,9 +913,7 @@ async function importCollection() {
     }
 
   }
-
 }
-
 
 /* =========================================================
    TABLE VIEW
@@ -750,20 +938,15 @@ async function tableView(
         )
         .limit(100);
 
-
     if (error) {
-
       throw error;
-
     }
-
 
     app.innerHTML = `
 
       <h2>
         ${esc(title)}
       </h2>
-
 
       <div class="toolbar">
 
@@ -774,7 +957,6 @@ async function tableView(
         </button>
 
       </div>
-
 
       <div class="table-wrap">
 
@@ -796,7 +978,6 @@ async function tableView(
             </tr>
 
           </thead>
-
 
           <tbody>
 
@@ -840,7 +1021,6 @@ async function tableView(
 
     `;
 
-
     document
       .getElementById(
         "tableRefresh"
@@ -853,15 +1033,14 @@ async function tableView(
           columns
         );
 
-
   } catch (error) {
 
-    showError(error);
+    showError(
+      error
+    );
 
   }
-
 }
-
 
 /* =========================================================
    GRAMMAR INTRO
@@ -881,78 +1060,41 @@ async function grammarIntro() {
         )
         .select(
           `
-          id,
-          lesson_id,
-          title,
-          short_text,
-          detailed_text,
-          image_url,
-          audio_url,
-          video_url,
-          audio_duration_seconds,
-          video_duration_seconds,
-          sort_order,
-          is_active,
-          version,
-          created_at,
-          updated_at
+            id,
+            lesson_id,
+            title,
+            short_text,
+            detailed_text,
+            image_url,
+            audio_url,
+            video_url,
+            audio_duration_seconds,
+            video_duration_seconds,
+            sort_order,
+            is_active,
+            version,
+            created_at,
+            updated_at
           `
         )
         .order(
           "sort_order",
           {
-            ascending: true
+            ascending:
+              true
           }
         )
         .limit(100);
 
-
     if (error) {
-
       throw error;
-
     }
-
 
     app.innerHTML = `
 
       <h2>
         Grammar Intro
       </h2>
-
-
-      <div class="panel">
-
-        <p>
-          Grammar introduction for lessons.
-        </p>
-
-        <p>
-          Each lesson can contain:
-        </p>
-
-        <ul>
-
-          <li>
-            Text
-          </li>
-
-          <li>
-            Image
-          </li>
-
-          <li>
-            Audio
-          </li>
-
-          <li>
-            Video
-          </li>
-
-        </ul>
-
-      </div>
-
 
       <div class="card-grid">
 
@@ -969,13 +1111,11 @@ async function grammarIntro() {
                     )}
                   </h3>
 
-
                   <p>
                     ${esc(
                       item.short_text
                     )}
                   </p>
-
 
                   ${
                     item.detailed_text
@@ -988,7 +1128,6 @@ async function grammarIntro() {
                       `
                       : ""
                   }
-
 
                   ${
                     item.image_url
@@ -1003,7 +1142,6 @@ async function grammarIntro() {
                       : ""
                   }
 
-
                   ${
                     item.audio_url
                       ? `
@@ -1016,7 +1154,6 @@ async function grammarIntro() {
                       `
                       : ""
                   }
-
 
                   ${
                     item.video_url
@@ -1042,139 +1179,14 @@ async function grammarIntro() {
 
     `;
 
-
   } catch (error) {
 
-    showError(error);
-
-  }
-
-}
-
-
-/* =========================================================
-   CONFIG
-========================================================= */
-
-async function config() {
-
-  try {
-
-    const {
-      data,
+    showError(
       error
-    } =
-      await sb
-        .from(
-          "app_config"
-        )
-        .select(
-          "key,value,version,updated_at"
-        )
-        .order(
-          "key",
-          {
-            ascending: true
-          }
-        );
-
-
-    if (error) {
-
-      throw error;
-
-    }
-
-
-    app.innerHTML = `
-
-      <h2>
-        Front Config
-      </h2>
-
-
-      <div class="panel">
-
-        <div class="table-wrap">
-
-          <table class="table">
-
-            <thead>
-
-              <tr>
-
-                <th>
-                  Key
-                </th>
-
-                <th>
-                  Value
-                </th>
-
-                <th>
-                  Version
-                </th>
-
-              </tr>
-
-            </thead>
-
-
-            <tbody>
-
-              ${
-                (data || [])
-                  .map(
-                    row => `
-
-                      <tr>
-
-                        <td>
-                          ${esc(
-                            row.key
-                          )}
-                        </td>
-
-                        <td>
-                          <pre>${esc(
-                            jsonText(
-                              row.value
-                            )
-                          )}</pre>
-                        </td>
-
-                        <td>
-                          ${esc(
-                            row.version
-                          )}
-                        </td>
-
-                      </tr>
-
-                    `
-                  )
-                  .join("")
-              }
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </div>
-
-    `;
-
-
-  } catch (error) {
-
-    showError(error);
+    );
 
   }
-
 }
-
 
 /* =========================================================
    DATABASE VERSION
@@ -1194,37 +1206,37 @@ async function databaseVersion() {
         )
         .select(
           `
-          id,
-          version,
-          release_name,
-          checksum,
-          notes,
-          created_at,
-          is_current
+            id,
+            version,
+            major_version,
+            minor_version,
+            release_name,
+            checksum,
+            notes,
+            created_at,
+            is_current,
+            published_at,
+            published_by
           `
         )
         .order(
           "version",
           {
-            ascending: false
+            ascending:
+              false
           }
         )
         .limit(50);
 
-
     if (error) {
-
       throw error;
-
     }
-
 
     app.innerHTML = `
 
       <h2>
         Database Version
       </h2>
-
 
       <div class="panel">
 
@@ -1260,7 +1272,6 @@ async function databaseVersion() {
 
             </thead>
 
-
             <tbody>
 
               ${
@@ -1272,7 +1283,13 @@ async function databaseVersion() {
 
                         <td>
                           ${esc(
-                            row.version
+                            row.major_version
+                          )}.${String(
+                            row.minor_version ??
+                            0
+                          ).padStart(
+                            2,
+                            "0"
                           )}
                         </td>
 
@@ -1319,15 +1336,14 @@ async function databaseVersion() {
 
     `;
 
-
   } catch (error) {
 
-    showError(error);
+    showError(
+      error
+    );
 
   }
-
 }
-
 
 /* =========================================================
    APP VERSION
@@ -1347,13 +1363,13 @@ async function appVersion() {
         )
         .select(
           `
-          id,
-          major_version,
-          minor_version,
-          app_version,
-          minimum_supported_version,
-          release_notes,
-          updated_at
+            id,
+            major_version,
+            minor_version,
+            app_version,
+            minimum_supported_version,
+            release_notes,
+            updated_at
           `
         )
         .eq(
@@ -1362,13 +1378,9 @@ async function appVersion() {
         )
         .maybeSingle();
 
-
     if (error) {
-
       throw error;
-
     }
-
 
     if (!data) {
 
@@ -1377,7 +1389,6 @@ async function appVersion() {
         <h2>
           App Version
         </h2>
-
 
         <div class="panel">
 
@@ -1390,16 +1401,13 @@ async function appVersion() {
       `;
 
       return;
-
     }
-
 
     app.innerHTML = `
 
       <h2>
         App Version
       </h2>
-
 
       <div class="panel">
 
@@ -1408,11 +1416,12 @@ async function appVersion() {
         </h3>
 
         <div class="version">
+
           ${esc(
             data.app_version
           )}
-        </div>
 
+        </div>
 
         <p>
           Major version:
@@ -1423,7 +1432,6 @@ async function appVersion() {
           </strong>
         </p>
 
-
         <p>
           Minor version:
           <strong>
@@ -1433,14 +1441,12 @@ async function appVersion() {
           </strong>
         </p>
 
-
         <p>
           Minimum supported version:
           ${esc(
             data.minimum_supported_version
           )}
         </p>
-
 
         <p>
           ${esc(
@@ -1449,7 +1455,6 @@ async function appVersion() {
         </p>
 
       </div>
-
 
       <div class="panel">
 
@@ -1475,15 +1480,14 @@ async function appVersion() {
 
     `;
 
-
   } catch (error) {
 
-    showError(error);
+    showError(
+      error
+    );
 
   }
-
 }
-
 
 /* =========================================================
    PUBLISH / SYNC
@@ -1503,28 +1507,63 @@ async function publishView() {
         )
         .select(
           `
-          id,
-          name,
-          slug,
-          version,
-          is_published,
-          updated_at
+            id,
+            name,
+            slug,
+            version,
+            is_published,
+            updated_at
           `
         )
         .order(
           "updated_at",
           {
-            ascending: false
+            ascending:
+              false
           }
         );
 
-
     if (error) {
-
       throw error;
-
     }
 
+    const {
+      data: release,
+      error:
+        releaseError
+    } =
+      await sb
+        .from(
+          "database_release"
+        )
+        .select(
+          `
+            major_version,
+            minor_version,
+            database_version,
+            release_name,
+            updated_at
+          `
+        )
+        .eq(
+          "id",
+          true
+        )
+        .maybeSingle();
+
+    if (releaseError) {
+      throw releaseError;
+    }
+
+    const currentVersion =
+      release
+        ? `${release.major_version}.${String(
+            release.minor_version
+          ).padStart(
+            2,
+            "0"
+          )}`
+        : "—";
 
     app.innerHTML = `
 
@@ -1532,25 +1571,56 @@ async function publishView() {
         Publish / Sync
       </h2>
 
-
       <div class="panel">
 
-        <p>
-          Import creates draft content.
-        </p>
+        <h3>
+          Current Database
+        </h3>
 
         <p>
-          Publish makes the collection
-          available to the application.
+          Database Version:
+          <strong>
+            ${esc(
+              currentVersion
+            )}
+          </strong>
         </p>
 
-        <p>
-          Publishing also increments
-          the database version.
-        </p>
+        ${
+          release?.release_name
+            ? `
+              <p>
+                Release:
+                ${esc(
+                  release.release_name
+                )}
+              </p>
+            `
+            : ""
+        }
+
+        <div class="toolbar">
+
+          <button
+            id="syncDatabase"
+          >
+            Sync
+          </button>
+
+          <button
+            id="refreshPublish"
+          >
+            Refresh
+          </button>
+
+        </div>
+
+        <div
+          id="syncStatus"
+          class="status"
+        ></div>
 
       </div>
-
 
       <div class="card-grid">
 
@@ -1567,7 +1637,6 @@ async function publishView() {
                     )}
                   </h3>
 
-
                   <p>
                     Slug:
                     ${esc(
@@ -1575,14 +1644,12 @@ async function publishView() {
                     )}
                   </p>
 
-
                   <p>
                     Collection version:
                     ${esc(
                       collection.version
                     )}
                   </p>
-
 
                   <p>
                     Status:
@@ -1592,7 +1659,6 @@ async function publishView() {
                         : "Draft"
                     }
                   </p>
-
 
                   ${
                     collection.is_published
@@ -1621,14 +1687,12 @@ async function publishView() {
 
       </div>
 
-
       <div
         id="publishStatus"
         class="status"
       ></div>
 
     `;
-
 
     document
       .querySelectorAll(
@@ -1640,21 +1704,35 @@ async function publishView() {
           button.onclick =
             () =>
               publishCollection(
-                button.dataset.publishId
+                button.dataset
+                  .publishId
               );
 
         }
       );
 
+    document
+      .getElementById(
+        "refreshPublish"
+      )
+      .onclick =
+      publishView;
+
+    document
+      .getElementById(
+        "syncDatabase"
+      )
+      .onclick =
+      syncDatabase;
 
   } catch (error) {
 
-    showError(error);
+    showError(
+      error
+    );
 
   }
-
 }
-
 
 /* =========================================================
    PUBLISH COLLECTION
@@ -1669,23 +1747,18 @@ async function publishCollection(
       "publishStatus"
     );
 
-
   if (
     !confirm(
       "Publish this collection?"
     )
   ) {
-
     return;
-
   }
-
 
   try {
 
     status.textContent =
       "Publishing...";
-
 
     const {
       data,
@@ -1701,7 +1774,6 @@ async function publishCollection(
         }
       );
 
-
     if (error) {
 
       throw new Error(
@@ -1711,10 +1783,10 @@ async function publishCollection(
 
     }
 
-
     if (
       !data ||
-      data.success !== true
+      data.success !==
+        true
     ) {
 
       throw new Error(
@@ -1723,7 +1795,6 @@ async function publishCollection(
       );
 
     }
-
 
     status.innerHTML = `
 
@@ -1745,11 +1816,16 @@ async function publishCollection(
         data.published_lessons
       )}
 
+      <br>
+
+      Sync changes:
+      ${esc(
+        data.sync_changes
+      )}
+
     `;
 
-
     await publishView();
-
 
   } catch (error) {
 
@@ -1757,7 +1833,6 @@ async function publishCollection(
       "PUBLISH ERROR:",
       error
     );
-
 
     status.innerHTML = `
 
@@ -1775,9 +1850,134 @@ async function publishCollection(
     `;
 
   }
-
 }
 
+/* =========================================================
+   SYNC
+========================================================= */
+
+async function syncDatabase() {
+
+  const status =
+    document.getElementById(
+      "syncStatus"
+    );
+
+  try {
+
+    status.textContent =
+      "Checking synchronization...";
+
+    const {
+      data: release,
+      error:
+        releaseError
+    } =
+      await sb
+        .from(
+          "database_release"
+        )
+        .select(
+          `
+            major_version,
+            minor_version,
+            database_version
+          `
+        )
+        .eq(
+          "id",
+          true
+        )
+        .single();
+
+    if (releaseError) {
+      throw releaseError;
+    }
+
+    const version =
+      `${release.major_version}.${String(
+        release.minor_version
+      ).padStart(
+        2,
+        "0"
+      )}`;
+
+    const {
+      data,
+      error
+    } =
+      await sb.functions.invoke(
+        "sync-database",
+        {
+          body: {
+            database_version:
+              version
+          }
+        }
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    if (
+      !data ||
+      data.success !==
+        true
+    ) {
+      throw new Error(
+        data?.error ||
+        "Sync check failed."
+      );
+    }
+
+    status.innerHTML = `
+
+      <strong class="success">
+        Database is synchronized.
+      </strong>
+
+      <br><br>
+
+      Current version:
+      ${esc(
+        data.database_version
+      )}
+
+      <br>
+
+      Changes available:
+      ${esc(
+        data.changes?.length ||
+        0
+      )}
+
+    `;
+
+  } catch (error) {
+
+    console.error(
+      "SYNC ERROR:",
+      error
+    );
+
+    status.innerHTML = `
+
+      <strong class="error">
+        Sync failed
+      </strong>
+
+      <br><br>
+
+      ${esc(
+        error.message ||
+        String(error)
+      )}
+
+    `;
+
+  }
+}
 
 /* =========================================================
    ERROR
@@ -1787,8 +1987,9 @@ function showError(
   error
 ) {
 
-  console.error(error);
-
+  console.error(
+    error
+  );
 
   app.innerHTML = `
 
@@ -1815,22 +2016,16 @@ function showError(
 
   `;
 
-
   const retry =
     document.getElementById(
       "errorRetry"
     );
 
-
   if (retry) {
-
     retry.onclick =
       dashboard;
-
   }
-
 }
-
 
 /* =========================================================
    NAVIGATION
@@ -1848,7 +2043,6 @@ function view(
 
       break;
 
-
     case "vocabulary":
 
       tableView(
@@ -1864,7 +2058,6 @@ function view(
       );
 
       break;
-
 
     case "grammar":
 
@@ -1882,13 +2075,11 @@ function view(
 
       break;
 
-
     case "grammar-intro":
 
       grammarIntro();
 
       break;
-
 
     case "lessons":
 
@@ -1907,7 +2098,6 @@ function view(
 
       break;
 
-
     case "collections":
 
       tableView(
@@ -1924,13 +2114,11 @@ function view(
 
       break;
 
-
     case "import":
 
-      dashboard();
+      importView();
 
       break;
-
 
     case "publish":
 
@@ -1938,20 +2126,11 @@ function view(
 
       break;
 
-
-    case "config":
-
-      config();
-
-      break;
-
-
     case "database-version":
 
       databaseVersion();
 
       break;
-
 
     case "version":
 
@@ -1959,15 +2138,12 @@ function view(
 
       break;
 
-
     default:
 
       dashboard();
 
   }
-
 }
-
 
 /* =========================================================
    NAV BUTTONS
@@ -1984,14 +2160,14 @@ document
         () => {
 
           view(
-            button.dataset.view
+            button.dataset
+              .view
           );
 
         };
 
     }
   );
-
 
 /* =========================================================
    LOGOUT
@@ -2001,7 +2177,6 @@ const logout =
   document.getElementById(
     "logout"
   );
-
 
 if (logout) {
 
@@ -2013,9 +2188,7 @@ if (logout) {
       boot();
 
     };
-
 }
-
 
 /* =========================================================
    START

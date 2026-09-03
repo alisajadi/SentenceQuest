@@ -2,14 +2,10 @@
   box-sizing: border-box;
 }
 
-
 body {
   margin: 0;
-
   background: #f4f6f8;
-
   color: #17202a;
-
   font-family:
     system-ui,
     -apple-system,
@@ -18,415 +14,285 @@ body {
     sans-serif;
 }
 
-
 .shell {
   display: grid;
-
-  grid-template-columns:
-    240px 1fr;
-
+  grid-template-columns: 240px 1fr;
   min-height: 100vh;
 }
 
-
 aside {
   background: #17202a;
-
   color: white;
-
   padding: 22px;
-
   position: sticky;
-
   top: 0;
-
   height: 100vh;
-
   overflow-y: auto;
 }
 
-
 aside h1 {
   margin: 0;
-
   font-size: 22px;
 }
-
 
 aside p {
   opacity: .65;
 }
 
-
 nav {
   display: grid;
-
   gap: 7px;
-
   margin-top: 25px;
 }
 
-
 nav button {
   background: transparent;
-
   color: white;
-
   border: 0;
-
   text-align: left;
-
   padding: 12px;
-
   border-radius: 9px;
-
   cursor: pointer;
 }
 
-
-nav button:hover {
+nav button:hover,
+nav button.active {
   background: #ffffff18;
 }
-
 
 main {
   min-width: 0;
 }
 
-
 header {
   height: 64px;
-
   background: white;
-
-  border-bottom:
-    1px solid #ddd;
-
-  padding:
-    0 22px;
-
+  border-bottom: 1px solid #ddd;
+  padding: 0 22px;
   display: flex;
-
-  justify-content:
-    space-between;
-
+  justify-content: space-between;
   align-items: center;
-
   position: sticky;
-
   top: 0;
-
   z-index: 5;
 }
 
-
 #connection {
   color: #16803c;
-
   font-weight: 600;
 }
 
-
 #app {
   padding: 22px;
-
   max-width: 1500px;
-
   margin: auto;
 }
 
-
 .grid {
   display: grid;
-
   grid-template-columns:
     repeat(
       auto-fit,
       minmax(180px, 1fr)
     );
-
   gap: 14px;
 }
 
-
-.stat,
-.panel {
-  background: white;
-
-  padding: 18px;
-
-  margin-bottom: 16px;
-
-  border-radius: 14px;
-
-  box-shadow:
-    0 2px 12px #0001;
-}
-
-
-.stat b {
-  display: block;
-
-  font-size: 30px;
-
-  margin-top: 8px;
-}
-
-
-.toolbar {
-  display: flex;
-
-  gap: 8px;
-
-  margin: 12px 0;
-
-  flex-wrap: wrap;
-}
-
-
-input,
-textarea,
-select,
-button {
-  padding:
-    11px 13px;
-
-  border-radius: 9px;
-
-  border:
-    1px solid #d5dbe2;
-
-  font: inherit;
-}
-
-
-input,
-textarea,
-select {
-  background: white;
-
-  width: 100%;
-}
-
-
-textarea {
-  min-height: 120px;
-
-  resize: vertical;
-}
-
-
-button {
-  cursor: pointer;
-
-  background: #17202a;
-
-  color: white;
-}
-
-
-button:hover {
-  opacity: .9;
-}
-
-
-button:disabled {
-  opacity: .5;
-
-  cursor: not-allowed;
-}
-
-
-.login {
-  max-width: 420px;
-
-  margin: 70px auto;
-
-  background: white;
-
-  padding: 25px;
-
-  border-radius: 15px;
-
-  box-shadow:
-    0 2px 15px #0001;
-}
-
-
-.login input {
-  display: block;
-
-  width: 100%;
-
-  margin: 9px 0;
-}
-
-
-.login button {
-  width: 100%;
-
-  margin-top: 8px;
-}
-
-
-.table-wrap {
-  overflow: auto;
-
-  background: white;
-
-  border-radius: 14px;
-}
-
-
-.table {
-  width: 100%;
-
-  border-collapse: collapse;
-
-  min-width: 700px;
-}
-
-
-.table th,
-.table td {
-  padding: 11px;
-
-  border-bottom:
-    1px solid #e7eaee;
-
-  text-align: left;
-
-  vertical-align: top;
-}
-
-
-.table th {
-  background: #f7f8fa;
-
-  position: sticky;
-
-  top: 0;
-}
-
-
 .card-grid {
   display: grid;
-
   grid-template-columns:
     repeat(
       auto-fit,
       minmax(260px, 1fr)
     );
-
   gap: 14px;
 }
 
+.stat,
+.panel {
+  background: white;
+  padding: 18px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  box-shadow:
+    0 2px 12px #0001;
+}
+
+.stat b {
+  display: block;
+  font-size: 30px;
+  margin-top: 8px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+
+input,
+textarea,
+select,
+button {
+  padding: 11px 13px;
+  border-radius: 9px;
+  border: 1px solid #d5dbe2;
+  font: inherit;
+}
+
+input,
+textarea,
+select {
+  background: white;
+  width: 100%;
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+button {
+  cursor: pointer;
+  background: #17202a;
+  color: white;
+}
+
+button:hover {
+  opacity: .9;
+}
+
+button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.login {
+  max-width: 420px;
+  margin: 70px auto;
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow:
+    0 2px 15px #0001;
+}
+
+.login input {
+  display: block;
+  width: 100%;
+  margin: 9px 0;
+}
+
+.login button {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.table-wrap {
+  overflow: auto;
+  background: white;
+  border-radius: 14px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+}
+
+.table th,
+.table td {
+  padding: 11px;
+  border-bottom: 1px solid #e7eaee;
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  background: #f7f8fa;
+  position: sticky;
+  top: 0;
+}
 
 .form-grid {
   display: grid;
-
   grid-template-columns:
     repeat(
       auto-fit,
       minmax(240px, 1fr)
     );
-
   gap: 14px;
 }
 
-
 .field {
   display: grid;
-
   gap: 6px;
 }
 
-
 .field label {
   font-weight: 600;
-
   font-size: 14px;
 }
 
-
 .preview {
   max-width: 100%;
-
   max-height: 260px;
-
   border-radius: 10px;
-
   margin-top: 8px;
 }
 
-
 .media-box {
-  border:
-    1px solid #e1e5ea;
-
+  border: 1px solid #e1e5ea;
   padding: 12px;
-
   border-radius: 10px;
-
   background: #fafbfc;
 }
 
-
 .status {
   padding: 12px;
-
   border-radius: 10px;
-
   margin-top: 10px;
-
   background: #f0f3f6;
 }
-
 
 .success {
   color: #146c2e;
 }
 
-
 .error {
   color: #a61b1b;
 }
-
 
 .warning {
   color: #8a5a00;
 }
 
-
 .muted {
   color: #68727d;
 }
 
-
 .version {
   font-size: 32px;
-
   font-weight: 700;
 }
 
-
 .badge {
   display: inline-block;
-
-  padding:
-    5px 9px;
-
+  padding: 5px 9px;
   border-radius: 20px;
-
   background: #eef1f4;
-
   font-size: 12px;
 }
 
+audio,
+video {
+  width: 100%;
+  max-width: 600px;
+  margin-top: 10px;
+}
 
-@media (
-  max-width: 800px
-) {
+@media (max-width: 800px) {
 
   .shell {
     display: block;
@@ -434,9 +300,7 @@ button:disabled {
 
   aside {
     position: relative;
-
     height: auto;
-
     padding: 14px;
   }
 
@@ -446,29 +310,21 @@ button:disabled {
 
   nav {
     display: flex;
-
     overflow-x: auto;
-
     margin-top: 12px;
-
     padding-bottom: 4px;
   }
 
   nav button {
     white-space: nowrap;
-
     flex-shrink: 0;
   }
 
   header {
     position: sticky;
-
     top: 0;
-
     height: 56px;
-
-    padding:
-      0 14px;
+    padding: 0 14px;
   }
 
   #app {
@@ -476,8 +332,6 @@ button:disabled {
   }
 
   .form-grid {
-    grid-template-columns:
-      1fr;
+    grid-template-columns: 1fr;
   }
-
 }

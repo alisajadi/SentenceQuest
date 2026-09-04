@@ -1,25 +1,91 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sentence Quest — Play</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="game.css">
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <meta
+    name="theme-color"
+    content="#17202a"
+  >
+
+  <meta
+    name="description"
+    content="Sentence Quest — an immersive language-learning adventure."
+  >
+
+  <title>
+    Sentence Quest — Play
+  </title>
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+  ></script>
+
+  <link
+    rel="stylesheet"
+    href="game.css"
+  >
 </head>
+
 <body>
+
   <header class="topbar">
-    <div class="brand">Sentence Quest</div>
-    <div id="hud" class="hud"></div>
-    <div class="topbar-actions">
-      <button id="navStory" class="nav-tab active">Story</button>
-      <button id="navCalendar" class="nav-tab">Calendar</button>
-      <button id="logout" class="link-button">Sign out</button>
+
+    <div class="brand">
+      Sentence Quest
     </div>
+
+    <div
+      id="hud"
+      class="hud"
+      aria-live="polite"
+    ></div>
+
+    <div class="topbar-actions">
+
+      <button
+        id="navStory"
+        class="nav-tab active"
+        type="button"
+      >
+        Story
+      </button>
+
+      <button
+        id="navCalendar"
+        class="nav-tab"
+        type="button"
+      >
+        Journal
+      </button>
+
+      <button
+        id="logout"
+        class="link-button"
+        type="button"
+      >
+        Sign out
+      </button>
+
+    </div>
+
   </header>
 
-  <main id="app" class="app"></main>
+  <main
+    id="app"
+    class="app"
+  ></main>
 
-  <script src="game.js"></script>
+  <script
+    src="game.js"
+  ></script>
+
 </body>
+
 </html>

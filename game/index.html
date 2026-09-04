@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sentence Quest — Play</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="game.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Sentence Quest</div>
+    <div id="hud" class="hud"></div>
+    <div class="topbar-actions">
+      <button id="navStory" class="nav-tab active">Story</button>
+      <button id="navCalendar" class="nav-tab">Calendar</button>
+      <button id="logout" class="link-button">Sign out</button>
+    </div>
+  </header>
+
+  <main id="app" class="app"></main>
+
+  <script src="game.js"></script>
+</body>
+</html>

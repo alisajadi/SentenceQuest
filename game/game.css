@@ -1,0 +1,217 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #f4f6f8;
+  color: #17202a;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: #17202a;
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand { font-weight: 800; letter-spacing: .02em; }
+
+.hud {
+  flex: 1;
+  display: flex;
+  gap: 14px;
+  font-size: 13px;
+  opacity: .9;
+  flex-wrap: wrap;
+}
+.hud b { color: #fff; }
+
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+.nav-tab {
+  background: transparent;
+  border: 1px solid #ffffff33;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.nav-tab.active { background: #ffffff22; }
+
+.link-button {
+  background: none;
+  border: none;
+  color: #cbd3da;
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+.app {
+  max-width: 760px;
+  margin: 24px auto;
+  padding: 0 16px 60px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px #0001;
+}
+
+.card h2 { margin-top: 0; }
+.muted { color: #68727d; font-size: 13px; }
+
+.login {
+  max-width: 360px;
+  margin: 80px auto;
+  display: grid;
+  gap: 10px;
+  background: #fff;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px #0001;
+}
+.login input {
+  padding: 10px 12px;
+  border: 1px solid #d5dbe2;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.login button { margin-top: 4px; }
+.login .switch {
+  background: none;
+  border: none;
+  color: #2b6cb0;
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+  justify-self: start;
+}
+
+button {
+  background: #17202a;
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+button:disabled { opacity: .5; cursor: default; }
+button.secondary { background: #eef1f4; color: #17202a; }
+
+.error { color: #a61b1b; }
+.success { color: #146c2e; }
+
+.location-tag {
+  display: inline-block;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #eef1f4;
+  margin-bottom: 10px;
+}
+
+.dialogue-line {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.dialogue-line .speaker {
+  font-weight: 700;
+  min-width: 90px;
+  font-size: 13px;
+  color: #68727d;
+}
+.dialogue-line.player { flex-direction: row-reverse; text-align: right; }
+.dialogue-line .bubble {
+  background: #eef1f4;
+  padding: 8px 12px;
+  border-radius: 12px;
+  max-width: 80%;
+}
+.dialogue-line .translation {
+  display: block;
+  font-size: 12px;
+  color: #68727d;
+  margin-top: 2px;
+}
+
+.choice-list { display: grid; gap: 8px; margin-top: 12px; }
+.choice-button {
+  text-align: left;
+  background: #fff;
+  border: 1px solid #d5dbe2;
+  color: #17202a;
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+.choice-button:hover { border-color: #17202a; }
+
+.quest-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eef1f4;
+}
+.quest-item:last-child { border-bottom: none; }
+
+.word-bank, .sentence-builder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 46px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #f4f6f8;
+  margin-bottom: 12px;
+}
+.sentence-builder {
+  background: #fff;
+  border: 2px dashed #d5dbe2;
+}
+
+.word-chip {
+  background: #17202a;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 14px;
+  user-select: none;
+}
+.word-chip.in-builder { background: #2b6cb0; }
+
+.feedback {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.feedback.correct { background: #e5f6ea; color: #146c2e; }
+.feedback.creative { background: #fff6df; color: #6b4a00; }
+.feedback.incorrect { background: #fdeaea; color: #a61b1b; }
+
+.calendar-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eef1f4;
+}
+.calendar-item:last-child { border-bottom: none; }
+.calendar-date {
+  min-width: 90px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #68727d;
+}

@@ -1,0 +1,90 @@
+{
+  "format": "sentencequest.questpack",
+  "version": 1,
+
+  "destination": {
+    "code": "US",
+    "name": "United States",
+    "language_code": "en",
+    "calendar_type": "gregorian",
+    "timezone": "America/New_York",
+    "culture_notes": "Default English (US) life world used by the current build."
+  },
+
+  "locations": [
+    { "id": "loc_travel_agency", "code": "travel_agency", "name": "Downtown Travel Agency", "location_type": "travel_agency" },
+    { "id": "loc_airport", "code": "airport", "name": "International Airport", "location_type": "airport" },
+    { "id": "loc_hotel", "code": "hotel_lobby", "name": "Hotel Lobby", "location_type": "hotel" }
+  ],
+
+  "npcs": [
+    { "id": "npc_agent", "code": "travel_agent", "name": "Ms. Carter", "role": "travel_agent", "location_id": "loc_travel_agency" },
+    { "id": "npc_receptionist", "code": "hotel_receptionist", "name": "Mr. Diaz", "role": "receptionist", "location_id": "loc_hotel" }
+  ],
+
+  "story_nodes": [
+    {
+      "id": "node_travel_agency",
+      "code": "day1_travel_agency",
+      "title": "At the Travel Agency",
+      "day_number": 1,
+      "time_of_day": "morning",
+      "location_id": "loc_travel_agency",
+      "npc_id": "npc_agent",
+      "node_type": "dialogue",
+      "description": "Your journey begins here. You decide where to go.",
+      "is_start": true
+    },
+    {
+      "id": "node_airport",
+      "code": "day1_airport",
+      "title": "At the Airport",
+      "day_number": 1,
+      "time_of_day": "afternoon",
+      "location_id": "loc_airport",
+      "node_type": "quest",
+      "description": "Check in and get your boarding pass."
+    },
+    {
+      "id": "node_hotel",
+      "code": "day1_hotel",
+      "title": "Arriving at the Hotel",
+      "day_number": 1,
+      "time_of_day": "evening",
+      "location_id": "loc_hotel",
+      "npc_id": "npc_receptionist",
+      "node_type": "dialogue",
+      "description": "You made it. Time to check in."
+    }
+  ],
+
+  "story_choices": [
+    { "from": "node_travel_agency", "to": "node_airport", "choice_text": "Book the flight and head to the airport." }
+  ],
+
+  "quests": [
+    {
+      "id": "quest_boarding_pass",
+      "code": "get_boarding_pass",
+      "title": "Get Your Boarding Pass",
+      "description": "Talk to the counter and get your boarding pass using a simple present-simple sentence.",
+      "story_node_id": "node_airport",
+      "level": "A1",
+      "xp_reward": 50,
+      "steps": [
+        { "step_order": 1, "step_type": "sentence", "lesson_slug": "a1-food-001", "prompt_native": "به کارمند بگو چه می‌خوری (برای تمرین جمله‌سازی)" }
+      ]
+    }
+  ],
+
+  "dialogue_lines": [
+    { "story_node_id": "node_travel_agency", "npc_id": "npc_agent", "speaker_type": "npc", "line_order": 1, "target_text": "Where would you like to go?", "native_translation": "کجا می‌خواهید بروید؟" },
+    { "story_node_id": "node_travel_agency", "npc_id": "npc_agent", "speaker_type": "player", "line_order": 2, "target_text": "I want a ticket to New York.", "native_translation": "من یک بلیط به نیویورک می‌خواهم." },
+    { "story_node_id": "node_hotel", "npc_id": "npc_receptionist", "speaker_type": "npc", "line_order": 1, "target_text": "Welcome. Do you have a reservation?", "native_translation": "خوش آمدید. رزرو دارید؟" }
+  ],
+
+  "cultural_calendar_events": [
+    { "month": 12, "day": 25, "title": "Christmas", "description": "Federal holiday in the United States." },
+    { "month": 1, "day": 1, "title": "New Year's Day" }
+  ]
+}

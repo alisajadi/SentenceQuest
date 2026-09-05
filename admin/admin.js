@@ -1817,6 +1817,9 @@ function view(value) {
         "story_node_id", "speaker_type", "line_order", "target_text", "native_translation"
       ]);
       break;
+    case "dialogue-manager":
+      dialogueManagerView();
+      break;
     case "cultural-events":
       setActiveNav(value);
       tableView("cultural_calendar_events", "Cultural Calendar", [

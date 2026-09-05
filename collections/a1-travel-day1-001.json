@@ -1,0 +1,167 @@
+{
+  "format": "sentencequest.collection",
+  "language": {
+    "code": "en",
+    "name": "English (US)",
+    "locale": "en-US"
+  },
+  "collection": {
+    "slug": "a1-travel-day1-001",
+    "name": "A1 Travel — Day 1",
+    "description": "English for the first day of the SentenceQuest journey.",
+    "version": 1,
+    "is_published": false
+  },
+  "vocabulary": [
+    {
+      "id": "travel",
+      "word": "travel",
+      "translation": "سفر کردن",
+      "part_of_speech": "verb",
+      "level": "A1"
+    },
+    {
+      "id": "ticket",
+      "word": "ticket",
+      "translation": "بلیط",
+      "part_of_speech": "noun",
+      "level": "A1"
+    },
+    {
+      "id": "airport",
+      "word": "airport",
+      "translation": "فرودگاه",
+      "part_of_speech": "noun",
+      "level": "A1"
+    },
+    {
+      "id": "flight",
+      "word": "flight",
+      "translation": "پرواز",
+      "part_of_speech": "noun",
+      "level": "A1"
+    },
+    {
+      "id": "name",
+      "word": "name",
+      "translation": "نام",
+      "part_of_speech": "noun",
+      "level": "A1"
+    },
+    {
+      "id": "new-york",
+      "word": "New York",
+      "translation": "نیویورک",
+      "part_of_speech": "proper_noun",
+      "level": "A1"
+    },
+    {
+      "id": "want",
+      "word": "want",
+      "translation": "خواستن",
+      "part_of_speech": "verb",
+      "level": "A1"
+    },
+    {
+      "id": "go",
+      "word": "go",
+      "translation": "رفتن",
+      "part_of_speech": "verb",
+      "level": "A1"
+    }
+  ],
+  "word_forms": [],
+  "word_relations": [],
+  "grammar": [
+    {
+      "code": "a1_basic_requests",
+      "name": "Basic Requests",
+      "level": "A1",
+      "description": "Simple requests using I want."
+    }
+  ],
+  "sentence_patterns": [
+    {
+      "code": "basic_request",
+      "name": "Basic Request",
+      "pattern": "Subject + Verb + Object"
+    }
+  ],
+  "lessons": [
+    {
+      "slug": "a1-travel-ticket-001",
+      "title": "Buying a Ticket",
+      "level": "A1",
+      "order_index": 1,
+      "description": "Ask for a flight ticket.",
+      "hint": "Start with: I want...",
+      "target_sentence": "I want a ticket.",
+      "base_xp": 10,
+      "creativity_xp": 5,
+      "is_published": false,
+      "vocabulary_ids": [
+        "want",
+        "ticket"
+      ],
+      "grammar_codes": [
+        "a1_basic_requests"
+      ],
+      "pattern_codes": [
+        "basic_request"
+      ]
+    },
+    {
+      "slug": "a1-travel-destination-001",
+      "title": "Choose Your Destination",
+      "level": "A1",
+      "order_index": 2,
+      "description": "Say where you want to go.",
+      "hint": "Use: I want to go to...",
+      "target_sentence": "I want to go to New York.",
+      "base_xp": 15,
+      "creativity_xp": 5,
+      "is_published": false,
+      "vocabulary_ids": [
+        "want",
+        "go",
+        "new-york"
+      ],
+      "grammar_codes": [
+        "a1_basic_requests"
+      ],
+      "pattern_codes": [
+        "basic_request"
+      ]
+    },
+    {
+      "slug": "a1-travel-name-001",
+      "title": "Give Your Name",
+      "level": "A1",
+      "order_index": 3,
+      "description": "Say your name.",
+      "hint": "Use: My name is...",
+      "target_sentence": "My name is Ali.",
+      "base_xp": 10,
+      "creativity_xp": 5,
+      "is_published": false,
+      "vocabulary_ids": [
+        "name"
+      ],
+      "grammar_codes": [],
+      "pattern_codes": []
+    }
+  ],
+  "grammar_intros": [
+    {
+      "lesson_slug": "a1-travel-ticket-001",
+      "title": "Making a Simple Request",
+      "body": "Use I want to ask for something."
+    },
+    {
+      "lesson_slug": "a1-travel-destination-001",
+      "title": "Talking About Your Destination",
+      "body": "Use I want to go to... when talking about a destination."
+    }
+  ],
+  "items": []
+}

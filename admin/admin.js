@@ -1807,6 +1807,10 @@ function view(value) {
         "code", "title", "level", "xp_reward", "is_published", "version"
       ]);
       break;
+      
+      case "quest-manager":
+      questManagerView();
+      break;
     case "dialogue-lines":
       setActiveNav(value);
       tableView("dialogue_lines", "Dialogue Lines", [

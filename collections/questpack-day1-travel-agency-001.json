@@ -1,0 +1,215 @@
+{
+  "format": "sentencequest.questpack",
+
+  "destination": {
+    "code": "US",
+    "name": "United States",
+    "language_code": "en",
+    "calendar_type": "gregorian",
+    "timezone": "America/New_York",
+    "culture_notes": "United States travel and everyday life."
+  },
+
+  "locations": [
+    {
+      "code": "travel_agency",
+      "name": "Travel Agency",
+      "location_type": "business",
+      "description": "A small travel agency where the journey begins."
+    },
+    {
+      "code": "airport",
+      "name": "Airport",
+      "location_type": "airport",
+      "description": "The airport where the player checks in for the flight."
+    }
+  ],
+
+  "npcs": [
+    {
+      "code": "travel_agent",
+      "name": "Travel Agent",
+      "role": "Travel Agent",
+      "location_code": "travel_agency",
+      "personality_notes": "Friendly, patient and helpful."
+    },
+    {
+      "code": "airport_agent",
+      "name": "Airport Agent",
+      "role": "Check-in Agent",
+      "location_code": "airport",
+      "personality_notes": "Professional and polite."
+    }
+  ],
+
+  "story_nodes": [
+    {
+      "code": "day1_travel_agency",
+      "title": "At the Travel Agency",
+      "day_number": 1,
+      "time_of_day": "morning",
+      "location_code": "travel_agency",
+      "npc_code": "travel_agent",
+      "node_type": "quest",
+      "description": "Your journey begins at a travel agency.",
+      "is_start": true,
+      "is_published": false
+    },
+
+    {
+      "code": "day1_choose_destination",
+      "title": "Choose Your Destination",
+      "day_number": 1,
+      "time_of_day": "morning",
+      "location_code": "travel_agency",
+      "npc_code": "travel_agent",
+      "node_type": "dialogue",
+      "description": "The travel agent asks where you want to go.",
+      "is_start": false,
+      "is_published": false
+    },
+
+    {
+      "code": "day1_buy_ticket",
+      "title": "Buy Your Ticket",
+      "day_number": 1,
+      "time_of_day": "morning",
+      "location_code": "travel_agency",
+      "npc_code": "travel_agent",
+      "node_type": "quest",
+      "description": "Tell the travel agent what you want.",
+      "is_start": false,
+      "is_published": false
+    },
+
+    {
+      "code": "day1_airport",
+      "title": "At the Airport",
+      "day_number": 1,
+      "time_of_day": "afternoon",
+      "location_code": "airport",
+      "npc_code": "airport_agent",
+      "node_type": "quest",
+      "description": "You arrive at the airport.",
+      "is_start": false,
+      "is_published": false
+    }
+  ],
+
+  "story_choices": [
+    {
+      "from_node_code": "day1_travel_agency",
+      "to_node_code": "day1_choose_destination",
+      "choice_text": "Start my journey",
+      "sort_order": 1
+    },
+
+    {
+      "from_node_code": "day1_choose_destination",
+      "to_node_code": "day1_buy_ticket",
+      "choice_text": "I want to go to the United States.",
+      "sort_order": 1
+    },
+
+    {
+      "from_node_code": "day1_buy_ticket",
+      "to_node_code": "day1_airport",
+      "choice_text": "Go to the airport",
+      "sort_order": 1
+    }
+  ],
+
+  "quests": [
+    {
+      "code": "day1_buy_ticket",
+      "title": "Buy Your Flight Ticket",
+      "description": "Tell the travel agent what you want.",
+      "story_node_code": "day1_buy_ticket",
+      "level": "A1",
+      "xp_reward": 20,
+      "is_repeatable": false,
+      "is_published": false,
+
+      "steps": [
+        {
+          "step_order": 1,
+          "step_type": "sentence",
+          "lesson_slug": "a1-travel-ticket-001",
+          "prompt_native": "به آژانس بگو یک بلیط می‌خواهی.",
+          "prompt_target": "Say: I want a ticket."
+        }
+      ]
+    },
+
+    {
+      "code": "day1_destination",
+      "title": "Tell the Agent Your Destination",
+      "description": "Tell the travel agent where you want to go.",
+      "story_node_code": "day1_choose_destination",
+      "level": "A1",
+      "xp_reward": 20,
+      "is_repeatable": false,
+      "is_published": false,
+
+      "steps": [
+        {
+          "step_order": 1,
+          "step_type": "sentence",
+          "lesson_slug": "a1-travel-destination-001",
+          "prompt_native": "بگو می‌خواهی به نیویورک بروی.",
+          "prompt_target": "Say: I want to go to New York."
+        }
+      ]
+    }
+  ],
+
+  "dialogue_lines": [
+    {
+      "story_node_code": "day1_travel_agency",
+      "npc_code": "travel_agent",
+      "speaker_type": "npc",
+      "line_order": 1,
+      "target_text": "Welcome. How can I help you?",
+      "native_translation": "خوش آمدید. چطور می‌توانم کمکتان کنم؟"
+    },
+
+    {
+      "story_node_code": "day1_choose_destination",
+      "npc_code": "travel_agent",
+      "speaker_type": "npc",
+      "line_order": 1,
+      "target_text": "Where do you want to go?",
+      "native_translation": "کجا می‌خواهید بروید؟"
+    },
+
+    {
+      "story_node_code": "day1_choose_destination",
+      "npc_code": "travel_agent",
+      "speaker_type": "player",
+      "line_order": 2,
+      "target_text": "I want to go to New York.",
+      "native_translation": "می‌خواهم به نیویورک بروم.",
+      "lesson_slug": "a1-travel-destination-001"
+    },
+
+    {
+      "story_node_code": "day1_buy_ticket",
+      "npc_code": "travel_agent",
+      "speaker_type": "npc",
+      "line_order": 1,
+      "target_text": "What kind of ticket do you want?",
+      "native_translation": "چه نوع بلیطی می‌خواهید؟"
+    },
+
+    {
+      "story_node_code": "day1_airport",
+      "npc_code": "airport_agent",
+      "speaker_type": "npc",
+      "line_order": 1,
+      "target_text": "Good afternoon. May I see your ticket?",
+      "native_translation": "عصر بخیر. می‌توانم بلیط شما را ببینم؟"
+    }
+  ],
+
+  "cultural_calendar_events": []
+}

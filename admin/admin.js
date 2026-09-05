@@ -1822,6 +1822,9 @@ function view(value) {
     case "import-quest-pack":
       importQuestPackView();
       break;
+    case "world-publish":
+      worldPublishView();
+      break;
     case "database-version":
       databaseVersion();
       break;

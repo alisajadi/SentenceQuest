@@ -959,19 +959,40 @@ async function showDialogueEditor(
    ORDER
    ========================================================= */
 
-function getNextDialogueOrder(
-  nodeId
-) {
-  const lines =
-    dialogueManagerState.lines.filter(
-      (line) =>
-        line.story_node_id ===
-        nodeId
-    );
-
-  if (!lines.length) {
+async function getNextDialogueOrder(nodeId) {
+  if (!nodeId) {
     return 1;
   }
+
+  const {
+    data,
+    error
+  } = await sb
+    .from("dialogue_lines")
+    .select("line_order")
+    .eq("story_node_id", nodeId)
+    .order("line_order", {
+      ascending: false
+    })
+    .limit(1);
+
+  if (error) {
+    console.error(
+      "Failed to calculate next dialogue order:",
+      error
+    );
+
+    return 1;
+  }
+
+  if (!data || !data.length) {
+    return 1;
+  }
+
+  return (
+    Number(data[0].line_order || 0) + 1
+  );
+}
 
   return (
     Math.max(

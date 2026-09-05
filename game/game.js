@@ -30,7 +30,17 @@ const state = {
 
   activeQuest: null
 };
+/* =========================================================
+   PUBLIC GAME BRIDGE
+   Used by modular interaction components.
+   ========================================================= */
 
+window.SQ = {
+  state,
+  sb,
+  app,
+  esc
+};
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;",

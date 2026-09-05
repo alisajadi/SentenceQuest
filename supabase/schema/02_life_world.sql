@@ -470,3 +470,33 @@ with check (is_approved = false);
 -- =========================================================
 -- DONE — run 03 seed (optional) after this file.
 -- =========================================================
+drop policy if exists
+"public story choices"
+on public.story_choices;
+
+create policy
+"public story choices"
+on public.story_choices
+for select
+to anon, authenticated
+using (
+  exists (
+    select 1
+    from public.story_nodes from_node
+    where
+      from_node.id =
+        story_choices.from_node_id
+      and from_node.is_published = true
+      and from_node.is_active = true
+  )
+  and
+  exists (
+    select 1
+    from public.story_nodes to_node
+    where
+      to_node.id =
+        story_choices.to_node_id
+      and to_node.is_published = true
+      and to_node.is_active = true
+  )
+);

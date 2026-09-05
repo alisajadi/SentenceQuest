@@ -12,6 +12,11 @@ let dialogueManagerState = {
   lines: []
 };
 
+
+/* =========================================================
+   MAIN VIEW
+   ========================================================= */
+
 async function dialogueManagerView() {
   setActiveNav("dialogue-manager");
 
@@ -22,7 +27,9 @@ async function dialogueManagerView() {
         .select("id,code,name")
         .order("name", { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     dialogueManagerState.destinations =
       destinations || [];
@@ -118,6 +125,7 @@ function renderDialogueManagerShell() {
 
   destination.onchange =
     async () => {
+
       dialogueManagerState.destinationId =
         destination.value || null;
 
@@ -138,12 +146,14 @@ function renderDialogueManagerShell() {
   document.getElementById(
     "dialogueRefresh"
   ).onclick =
-    () => dialogueManagerView();
+    () =>
+      dialogueManagerView();
 
   document.getElementById(
     "dialogueNew"
   ).onclick =
-    () => showDialogueEditor(null);
+    () =>
+      showDialogueEditor(null);
 }
 
 
@@ -155,11 +165,13 @@ async function loadDialogueManagerData(
   destinationId
 ) {
   try {
+
     const [
       nodesRes,
       npcsRes,
       lessonsRes
     ] = await Promise.all([
+
       sb
         .from("story_nodes")
         .select(`
@@ -209,6 +221,7 @@ async function loadDialogueManagerData(
         .order("title", {
           ascending: true
         })
+
     ]);
 
     if (nodesRes.error) {
@@ -278,6 +291,7 @@ async function loadDialogueManagerData(
    ========================================================= */
 
 function renderDialogueList(lines) {
+
   const container =
     document.getElementById(
       "dialogueManagerContent"
@@ -308,6 +322,7 @@ function renderDialogueList(lines) {
     );
 
   if (!lines.length) {
+
     container.innerHTML = `
       <div class="panel">
         <p class="muted">
@@ -315,6 +330,7 @@ function renderDialogueList(lines) {
         </p>
       </div>
     `;
+
     return;
   }
 
@@ -475,6 +491,7 @@ function renderDialogueList(lines) {
             showDialogueEditor(line);
           }
         };
+
     });
 }
 
@@ -486,20 +503,50 @@ function renderDialogueList(lines) {
 async function showDialogueEditor(
   line
 ) {
+
   const isNew =
     !line;
 
   if (
     !dialogueManagerState.nodes.length
   ) {
+
     alert(
       "Create a Story Node first."
     );
+
     return;
   }
 
   const firstNode =
     dialogueManagerState.nodes[0];
+
+  /*
+   * Determine the Story Node that will
+   * initially be selected.
+   */
+  const selectedNodeId =
+    line?.story_node_id ||
+    firstNode.id;
+
+  /*
+   * For a new dialogue line, calculate
+   * the next available order directly
+   * from the database.
+   *
+   * For an existing line, preserve
+   * its current order.
+   */
+  let initialOrder =
+    line?.line_order;
+
+  if (isNew) {
+
+    initialOrder =
+      await getNextDialogueOrder(
+        selectedNodeId
+      );
+  }
 
   app.innerHTML = `
     <h2>
@@ -650,16 +697,17 @@ async function showDialogueEditor(
         <input
           id="dialogueOrder"
           type="number"
-          min="0"
+          min="1"
           value="${esc(
-            line?.line_order ??
-            getNextDialogueOrder(
-              line?.story_node_id ||
-              firstNode.id
-            )
+            initialOrder || 1
           )}"
+          readonly
           required
         >
+
+        <small class="muted">
+          Line Order is assigned automatically for this Story Node.
+        </small>
 
 
         <label>
@@ -782,12 +830,63 @@ async function showDialogueEditor(
   `;
 
 
+  /* =======================================================
+     BACK BUTTON
+     ======================================================= */
+
   document.getElementById(
     "dialogueBack"
   ).onclick =
     () =>
       dialogueManagerView();
 
+
+  /* =======================================================
+     AUTOMATIC LINE ORDER
+     ======================================================= */
+
+  const nodeSelect =
+    document.getElementById(
+      "dialogueNode"
+    );
+
+  const orderInput =
+    document.getElementById(
+      "dialogueOrder"
+    );
+
+  if (
+    nodeSelect &&
+    orderInput
+  ) {
+
+    nodeSelect.onchange =
+      async () => {
+
+        try {
+
+          orderInput.value =
+            await getNextDialogueOrder(
+              nodeSelect.value
+            );
+
+        } catch (error) {
+
+          console.error(
+            "Failed to update dialogue order:",
+            error
+          );
+
+          orderInput.value =
+            "1";
+        }
+      };
+  }
+
+
+  /* =======================================================
+     FORM SUBMIT
+     ======================================================= */
 
   document.getElementById(
     "dialogueForm"
@@ -806,7 +905,9 @@ async function showDialogueEditor(
         status.textContent =
           "Saving...";
 
+
         const payload = {
+
           story_node_id:
             document.getElementById(
               "dialogueNode"
@@ -824,11 +925,14 @@ async function showDialogueEditor(
             ).value,
 
           line_order:
-            Number(
-              document.getElementById(
-                "dialogueOrder"
-              ).value ||
-              0
+            Math.max(
+              1,
+              Number(
+                document.getElementById(
+                  "dialogueOrder"
+                ).value ||
+                1
+              )
             ),
 
           target_text:
@@ -855,11 +959,18 @@ async function showDialogueEditor(
             null
         };
 
+
         if (!payload.target_text) {
+
           throw new Error(
             "Target text is required."
           );
         }
+
+
+        /* =================================================
+           CREATE
+           ================================================= */
 
         if (isNew) {
 
@@ -873,7 +984,14 @@ async function showDialogueEditor(
             throw error;
           }
 
-        } else {
+        }
+
+
+        /* =================================================
+           UPDATE
+           ================================================= */
+
+        else {
 
           const {
             error
@@ -890,17 +1008,20 @@ async function showDialogueEditor(
           }
         }
 
+
         status.innerHTML = `
           <strong class="success">
             Dialogue saved successfully.
           </strong>
         `;
 
+
         setTimeout(
           () =>
             dialogueManagerView(),
           500
         );
+
 
       } catch (error) {
 
@@ -915,6 +1036,10 @@ async function showDialogueEditor(
       }
     };
 
+
+  /* =======================================================
+     DELETE
+     ======================================================= */
 
   const deleteButton =
     document.getElementById(
@@ -934,6 +1059,7 @@ async function showDialogueEditor(
           return;
         }
 
+
         const {
           error
         } = await sb
@@ -944,10 +1070,16 @@ async function showDialogueEditor(
             line.id
           );
 
+
         if (error) {
-          alert(error.message);
+
+          alert(
+            error.message
+          );
+
           return;
         }
+
 
         await dialogueManagerView();
       };
@@ -956,13 +1088,35 @@ async function showDialogueEditor(
 
 
 /* =========================================================
-   ORDER
+   AUTOMATIC LINE ORDER
    ========================================================= */
 
-async function getNextDialogueOrder(nodeId) {
+/*
+ * Returns the next available line_order
+ * for the selected Story Node.
+ *
+ * Example:
+ *
+ * Existing:
+ *   1
+ *   2
+ *   3
+ *
+ * New line:
+ *   4
+ *
+ * If no lines exist:
+ *   1
+ */
+
+async function getNextDialogueOrder(
+  nodeId
+) {
+
   if (!nodeId) {
     return 1;
   }
+
 
   const {
     data,
@@ -970,13 +1124,21 @@ async function getNextDialogueOrder(nodeId) {
   } = await sb
     .from("dialogue_lines")
     .select("line_order")
-    .eq("story_node_id", nodeId)
-    .order("line_order", {
-      ascending: false
-    })
+    .eq(
+      "story_node_id",
+      nodeId
+    )
+    .order(
+      "line_order",
+      {
+        ascending: false
+      }
+    )
     .limit(1);
 
+
   if (error) {
+
     console.error(
       "Failed to calculate next dialogue order:",
       error
@@ -985,24 +1147,19 @@ async function getNextDialogueOrder(nodeId) {
     return 1;
   }
 
-  if (!data || !data.length) {
+
+  if (
+    !data ||
+    !data.length
+  ) {
     return 1;
   }
 
-  return (
-    Number(data[0].line_order || 0) + 1
-  );
-}
 
   return (
-    Math.max(
-      ...lines.map(
-        (line) =>
-          Number(
-            line.line_order ||
-            0
-          )
-      )
+    Number(
+      data[0].line_order ||
+      0
     ) + 1
   );
 }

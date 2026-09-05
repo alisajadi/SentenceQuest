@@ -500,3 +500,79 @@ using (
       and to_node.is_active = true
   )
 );
+
+
+
+
+drop policy if exists
+"public quests"
+on public.quests;
+
+create policy
+"public quests"
+on public.quests
+for select
+to anon, authenticated
+using (
+  is_published = true
+  and exists (
+    select 1
+    from public.story_nodes n
+    where
+      n.id =
+        quests.story_node_id
+      and n.is_published = true
+      and n.is_active = true
+  )
+);
+
+
+
+
+
+drop policy if exists
+"public quests"
+on public.quests;
+
+create policy
+"public quests"
+on public.quests
+for select
+to anon, authenticated
+using (
+  is_published = true
+  and exists (
+    select 1
+    from public.story_nodes n
+    where
+      n.id =
+        quests.story_node_id
+      and n.is_published = true
+      and n.is_active = true
+  )
+);
+
+
+
+drop policy if exists
+"public dialogue lines"
+on public.dialogue_lines;
+
+create policy
+"public dialogue lines"
+on public.dialogue_lines
+for select
+to anon, authenticated
+using (
+  exists (
+    select 1
+    from public.story_nodes n
+    where
+      n.id =
+        dialogue_lines.story_node_id
+      and n.is_published = true
+      and n.is_active = true
+  )
+);
+
+

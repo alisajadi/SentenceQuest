@@ -1392,7 +1392,335 @@ async function syncDatabase() {
     `;
   }
 }
+async function worldPublishView() {
+  setActiveNav("world-publish");
 
+  try {
+    const [
+      { data: destinations, error: destinationError },
+      release
+    ] = await Promise.all([
+      sb
+        .from("destinations")
+        .select("id,code,name,is_active")
+        .order("name", { ascending: true }),
+
+      getDatabaseRelease(),
+    ]);
+
+    if (destinationError) {
+      throw destinationError;
+    }
+
+    const currentVersion =
+      release
+        ? (
+            release.database_version ||
+            versionString(
+              release.major_version,
+              release.minor_version
+            )
+          )
+        : "—";
+
+    app.innerHTML = `
+      <h2>Publish World</h2>
+
+      <div class="panel">
+        <h3>Current Database</h3>
+
+        <p>
+          Database Version:
+          <strong>
+            ${esc(currentVersion)}
+          </strong>
+        </p>
+
+        <p>
+          Current Release:
+          <strong>
+            ${esc(
+              release?.release_name ||
+              "Initial Database"
+            )}
+          </strong>
+        </p>
+
+        <p class="muted">
+          Publishing a World creates a new database version
+          and adds the published World data to the sync system.
+        </p>
+      </div>
+
+      <div class="panel">
+        <h3>Select Destination</h3>
+
+        ${
+          (destinations || []).length
+            ? `
+              <div class="form-stack">
+
+                <select id="worldPublishDestination">
+                  <option value="">
+                    Select destination...
+                  </option>
+
+                  ${destinations
+                    .filter(
+                      (destination) =>
+                        destination.is_active
+                    )
+                    .map(
+                      (destination) => `
+                        <option value="${esc(
+                          destination.id
+                        )}">
+                          ${esc(
+                            destination.name
+                          )}
+                          (${esc(
+                            destination.code
+                          )})
+                        </option>
+                      `
+                    )
+                    .join("")}
+                </select>
+
+                <button
+                  id="publishWorldButton"
+                  disabled
+                >
+                  Validate & Publish World
+                </button>
+
+              </div>
+            `
+            : `
+              <p class="muted">
+                No destinations found.
+                Import a Quest Pack first.
+              </p>
+            `
+        }
+
+        <div
+          id="worldPublishStatus"
+          class="status"
+        ></div>
+      </div>
+    `;
+
+    const select =
+      document.getElementById(
+        "worldPublishDestination"
+      );
+
+    const button =
+      document.getElementById(
+        "publishWorldButton"
+      );
+
+    if (select && button) {
+      select.onchange = () => {
+        button.disabled =
+          !select.value;
+      };
+
+      button.onclick =
+        () =>
+          publishWorld(
+            select.value
+          );
+    }
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function publishWorld(
+  destinationId
+) {
+  const status =
+    document.getElementById(
+      "worldPublishStatus"
+    );
+
+  const button =
+    document.getElementById(
+      "publishWorldButton"
+    );
+
+  if (!destinationId) {
+    return;
+  }
+
+  if (
+    !confirm(
+      "Publish this World? This will create a new database version."
+    )
+  ) {
+    return;
+  }
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent =
+        "Validating...";
+    }
+
+    status.textContent =
+      "Validating Story Graph, Quests and Dialogue...";
+
+    const {
+      data,
+      error
+    } = await sb.functions.invoke(
+      "publish-world",
+      {
+        body: {
+          destination_id:
+            destinationId,
+        },
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "World publish function failed."
+      );
+    }
+
+    if (!data?.success) {
+      let message =
+        data?.error ||
+        "World publish failed.";
+
+      if (
+        data?.validation?.errors?.length
+      ) {
+        message +=
+          "\n\nValidation errors:\n" +
+          data.validation.errors
+            .map(
+              (item) =>
+                "• " + item
+            )
+            .join("\n");
+      }
+
+      throw new Error(
+        message
+      );
+    }
+
+    status.innerHTML = `
+      <strong class="success">
+        World published successfully.
+      </strong>
+
+      <br><br>
+
+      Database version:
+      <strong>
+        ${esc(
+          data.database_version
+        )}
+      </strong>
+
+      <br>
+
+      Story Nodes:
+      ${esc(
+        data.published_story_nodes
+      )}
+
+      <br>
+
+      Quests:
+      ${esc(
+        data.published_quests
+      )}
+
+      <br>
+
+      Quest Steps:
+      ${esc(
+        data.published_quest_steps
+      )}
+
+      <br>
+
+      Dialogue Lines:
+      ${esc(
+        data.published_dialogue_lines
+      )}
+
+      <br>
+
+      Sync Changes:
+      ${esc(
+        data.sync_changes
+      )}
+
+      ${
+        data.warnings?.length
+          ? `
+            <br><br>
+            <strong>
+              Warnings
+            </strong>
+
+            <ul>
+              ${data.warnings
+                .map(
+                  (warning) =>
+                    `<li>${esc(
+                      warning
+                    )}</li>`
+                )
+                .join("")}
+            </ul>
+          `
+          : ""
+      }
+    `;
+
+    if (button) {
+      button.disabled = false;
+      button.textContent =
+        "Validate & Publish World";
+    }
+
+    await worldPublishView();
+  } catch (error) {
+    console.error(
+      "WORLD PUBLISH ERROR:",
+      error
+    );
+
+    status.innerHTML = `
+      <strong class="error">
+        World publish failed.
+      </strong>
+
+      <br><br>
+
+      ${esc(
+        error.message ||
+        String(error)
+      )}
+    `;
+
+    if (button) {
+      button.disabled = false;
+      button.textContent =
+        "Validate & Publish World";
+    }
+  }
+}
 function showError(error) {
   console.error(error);
 

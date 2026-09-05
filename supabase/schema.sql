@@ -743,3 +743,511 @@ on conflict (version) do update set
 -- =========================================================
 -- DONE
 -- =========================================================
+-- =========================================================
+-- SENTENCE QUEST
+-- TEST STORY SEED
+-- =========================================================
+-- این فایل فقط برای تست اولیه Game است.
+-- فعلاً سیستم رسمی World Publishing را دور نمی‌زند
+-- برای production استفاده نشود.
+-- =========================================================
+
+do $$
+declare
+  v_language_id uuid;
+  v_destination_id uuid;
+
+  v_agency_location_id uuid;
+  v_airport_location_id uuid;
+
+  v_agent_npc_id uuid;
+
+  v_node_agency_id uuid;
+  v_node_airport_id uuid;
+
+  v_quest_id uuid;
+
+  v_lesson_id uuid;
+begin
+
+  -- =======================================================
+  -- LANGUAGE
+  -- =======================================================
+
+  select id
+  into v_language_id
+  from public.languages
+  where code = 'en'
+  limit 1;
+
+  if v_language_id is null then
+    raise exception
+      'English language (code=en) was not found. Import/publish the English collection first.';
+  end if;
+
+
+  -- =======================================================
+  -- DESTINATION
+  -- =======================================================
+
+  insert into public.destinations (
+    code,
+    name,
+    language_id,
+    calendar_type,
+    timezone,
+    culture_notes,
+    is_active,
+    version
+  )
+  values (
+    'US',
+    'United States',
+    v_language_id,
+    'gregorian',
+    'America/New_York',
+    'Prototype destination for SentenceQuest story testing.',
+    true,
+    1
+  )
+  on conflict (code)
+  do update set
+    name = excluded.name,
+    language_id = excluded.language_id,
+    calendar_type = excluded.calendar_type,
+    timezone = excluded.timezone,
+    is_active = true,
+    updated_at = now()
+  returning id
+  into v_destination_id;
+
+
+  -- =======================================================
+  -- LOCATION 1 — TRAVEL AGENCY
+  -- =======================================================
+
+  insert into public.locations (
+    destination_id,
+    code,
+    name,
+    location_type,
+    description,
+    is_active
+  )
+  values (
+    v_destination_id,
+    'travel_agency',
+    'Travel Agency',
+    'service',
+    'A small travel agency where your journey begins.',
+    true
+  )
+  on conflict (
+    destination_id,
+    code
+  )
+  do update set
+    name = excluded.name,
+    description = excluded.description,
+    is_active = true,
+    updated_at = now()
+  returning id
+  into v_agency_location_id;
+
+
+  -- =======================================================
+  -- LOCATION 2 — AIRPORT
+  -- =======================================================
+
+  insert into public.locations (
+    destination_id,
+    code,
+    name,
+    location_type,
+    description,
+    is_active
+  )
+  values (
+    v_destination_id,
+    'airport',
+    'International Airport',
+    'airport',
+    'The airport where you begin your trip.',
+    true
+  )
+  on conflict (
+    destination_id,
+    code
+  )
+  do update set
+    name = excluded.name,
+    description = excluded.description,
+    is_active = true,
+    updated_at = now()
+  returning id
+  into v_airport_location_id;
+
+
+  -- =======================================================
+  -- NPC — TRAVEL AGENT
+  -- =======================================================
+
+  insert into public.npcs (
+    destination_id,
+    location_id,
+    code,
+    name,
+    role,
+    personality_notes,
+    is_active
+  )
+  values (
+    v_destination_id,
+    v_agency_location_id,
+    'travel_agent',
+    'Emma',
+    'Travel Agent',
+    'Friendly, patient and helpful.',
+    true
+  )
+  on conflict (
+    destination_id,
+    code
+  )
+  do update set
+    location_id = excluded.location_id,
+    name = excluded.name,
+    role = excluded.role,
+    personality_notes = excluded.personality_notes,
+    is_active = true
+  returning id
+  into v_agent_npc_id;
+
+
+  -- =======================================================
+  -- NODE 1 — DAY 1 TRAVEL AGENCY
+  -- =======================================================
+
+  insert into public.story_nodes (
+    destination_id,
+    code,
+    title,
+    day_number,
+    time_of_day,
+    location_id,
+    npc_id,
+    node_type,
+    description,
+    is_start,
+    is_active,
+    is_published,
+    version
+  )
+  values (
+    v_destination_id,
+    'day1_travel_agency',
+    'Your Journey Begins',
+    1,
+    'morning',
+    v_agency_location_id,
+    v_agent_npc_id,
+    'quest',
+    'Your first morning begins at a travel agency.',
+    true,
+    true,
+    true,
+    1
+  )
+  on conflict (
+    destination_id,
+    code
+  )
+  do update set
+    title = excluded.title,
+    day_number = excluded.day_number,
+    time_of_day = excluded.time_of_day,
+    location_id = excluded.location_id,
+    npc_id = excluded.npc_id,
+    node_type = excluded.node_type,
+    description = excluded.description,
+    is_start = true,
+    is_active = true,
+    is_published = true,
+    updated_at = now()
+  returning id
+  into v_node_agency_id;
+
+
+  -- =======================================================
+  -- NODE 2 — DAY 1 AIRPORT
+  -- =======================================================
+
+  insert into public.story_nodes (
+    destination_id,
+    code,
+    title,
+    day_number,
+    time_of_day,
+    location_id,
+    npc_id,
+    node_type,
+    description,
+    is_start,
+    is_active,
+    is_published,
+    version
+  )
+  values (
+    v_destination_id,
+    'day1_airport',
+    'At the Airport',
+    1,
+    'afternoon',
+    v_airport_location_id,
+    null,
+    'dialogue',
+    'You arrive at the airport with your ticket.',
+    false,
+    true,
+    true,
+    1
+  )
+  on conflict (
+    destination_id,
+    code
+  )
+  do update set
+    title = excluded.title,
+    day_number = excluded.day_number,
+    time_of_day = excluded.time_of_day,
+    location_id = excluded.location_id,
+    npc_id = excluded.npc_id,
+    node_type = excluded.node_type,
+    description = excluded.description,
+    is_start = false,
+    is_active = true,
+    is_published = true,
+    updated_at = now()
+  returning id
+  into v_node_airport_id;
+
+
+  -- =======================================================
+  -- DIALOGUE — TRAVEL AGENCY
+  -- =======================================================
+
+  delete from public.dialogue_lines
+  where story_node_id = v_node_agency_id;
+
+
+  insert into public.dialogue_lines (
+    story_node_id,
+    npc_id,
+    speaker_type,
+    line_order,
+    target_text,
+    native_translation
+  )
+  values
+  (
+    v_node_agency_id,
+    v_agent_npc_id,
+    'narrator',
+    1,
+    'This is the beginning of your journey.',
+    'این آغاز سفر توست.'
+  ),
+  (
+    v_node_agency_id,
+    v_agent_npc_id,
+    'npc',
+    2,
+    'Good morning! How can I help you?',
+    'صبح بخیر! چطور می‌توانم کمکتان کنم؟'
+  ),
+  (
+    v_node_agency_id,
+    v_agent_npc_id,
+    'player',
+    3,
+    'I need a ticket.',
+    'من یک بلیت لازم دارم.'
+  );
+
+
+  -- =======================================================
+  -- DIALOGUE — AIRPORT
+  -- =======================================================
+
+  delete from public.dialogue_lines
+  where story_node_id = v_node_airport_id;
+
+
+  insert into public.dialogue_lines (
+    story_node_id,
+    npc_id,
+    speaker_type,
+    line_order,
+    target_text,
+    native_translation
+  )
+  values
+  (
+    v_node_airport_id,
+    null,
+    'narrator',
+    1,
+    'You arrive at the airport.',
+    'به فرودگاه می‌رسی.'
+  ),
+  (
+    v_node_airport_id,
+    null,
+    'narrator',
+    2,
+    'Your adventure is about to begin.',
+    'ماجراجویی تو در آستانه شروع است.'
+  );
+
+
+  -- =======================================================
+  -- STORY CHOICE
+  -- =======================================================
+
+  delete from public.story_choices
+  where from_node_id = v_node_agency_id;
+
+
+  insert into public.story_choices (
+    from_node_id,
+    to_node_id,
+    choice_text,
+    sort_order
+  )
+  values (
+    v_node_agency_id,
+    v_node_airport_id,
+    'Go to the airport',
+    1
+  )
+  on conflict (
+    from_node_id,
+    to_node_id
+  )
+  do update set
+    choice_text = excluded.choice_text,
+    sort_order = excluded.sort_order;
+
+
+  -- =======================================================
+  -- FIND EXISTING LESSON
+  -- =======================================================
+
+  select id
+  into v_lesson_id
+  from public.lessons
+  where slug = 'a1-food-001'
+  limit 1;
+
+  if v_lesson_id is null then
+    raise exception
+      'Lesson a1-food-001 was not found. Import the existing collection first.';
+  end if;
+
+
+  -- =======================================================
+  -- QUEST
+  -- =======================================================
+
+  insert into public.quests (
+    destination_id,
+    story_node_id,
+    code,
+    title,
+    description,
+    level,
+    xp_reward,
+    is_repeatable,
+    is_published,
+    version
+  )
+  values (
+    v_destination_id,
+    v_node_agency_id,
+    'get_your_ticket',
+    'Get Your Ticket',
+    'Complete your first language challenge before leaving the travel agency.',
+    'A1',
+    20,
+    false,
+    true,
+    1
+  )
+  on conflict (code)
+  do update set
+    destination_id = excluded.destination_id,
+    story_node_id = excluded.story_node_id,
+    title = excluded.title,
+    description = excluded.description,
+    level = excluded.level,
+    xp_reward = excluded.xp_reward,
+    is_repeatable = false,
+    is_published = true,
+    updated_at = now()
+  returning id
+  into v_quest_id;
+
+
+  -- =======================================================
+  -- QUEST STEP
+  -- =======================================================
+
+  delete from public.quest_steps
+  where quest_id = v_quest_id;
+
+
+  insert into public.quest_steps (
+    quest_id,
+    step_order,
+    step_type,
+    lesson_id,
+    prompt_native,
+    prompt_target
+  )
+  values (
+    v_quest_id,
+    1,
+    'sentence',
+    v_lesson_id,
+    'جمله را بساز.',
+    'Build the sentence.'
+  );
+
+
+  -- =======================================================
+  -- RESET START NODE STATE
+  -- =======================================================
+
+  update public.story_nodes
+  set
+    is_start = false,
+    updated_at = now()
+  where destination_id = v_destination_id
+    and id <> v_node_agency_id;
+
+
+  update public.story_nodes
+  set
+    is_start = true,
+    is_published = true,
+    is_active = true,
+    updated_at = now()
+  where id = v_node_agency_id;
+
+
+  raise notice
+    'SentenceQuest test story created successfully. Destination ID: %',
+    v_destination_id;
+
+end
+$$;
